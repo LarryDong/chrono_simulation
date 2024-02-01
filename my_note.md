@@ -3,8 +3,10 @@
 
 ## Issues
 - what is `marker`??
-- what is `quadrature`
+- what is `quadrature`	
 
+
+- 为什么lidar需要attach到一个parent上？
 
 
 ## Abbr.
@@ -12,7 +14,11 @@
 `QUINT`: unit quatarion
 `glyph`: 石雕符号；象形文字
 `FEA`: 有限元分析
-
+`COG`: center of mass
+`NSC`: Non Smooth Contacts
+`SMC`: SMooth Contacts 
+`IRR`: irrlicht
+`TSDA`: spring-damper-actuator
 
 
 
@@ -30,4 +36,9 @@ is derived from: `ChMaterialSurface`, which has: Rolling friction 滚动摩擦; 
 **Modify the default data path**  
 Use function: "SetChronoDataPath("/home/larrydong/codeGit/chrono_simulation/data")"  
 then `GetChronoDataFile` will load data file from the setting
+
+
+
+
+
 
