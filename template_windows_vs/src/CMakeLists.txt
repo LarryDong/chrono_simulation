@@ -14,6 +14,8 @@ set(LINKER_FLAGS "${CH_LINKERFLAG_EXE}")
 list(APPEND LIBRARIES "ChronoEngine")
 list(APPEND LIBRARIES "ChronoEngine_sensor")
 list(APPEND LIBRARIES "ChronoEngine_irrlicht")
+list(APPEND LIBRARIES "ChronoEngine_vehicle")
+list(APPEND LIBRARIES "ChronoEngine_vehicle_irrlicht")
 list(APPEND LIBRARIES "ChronoModels_vehicle")
 
 
