@@ -38,7 +38,7 @@ include_directories(${CHRONO_INCLUDE_DIRS})
 add_executable(my_chrono 
     chrono_main.cpp
     my_sensors.cpp
-
+    my_environment.cpp
 )
 
 #~ Do not know the meanings, but cannot be deleted.
