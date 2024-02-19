@@ -1,4 +1,6 @@
 
+clc; clear; close all;
+
 %% Draw the IMU data;
 
 % Define the CSV file name
@@ -62,14 +64,15 @@ eul = quat2eul([qw qx qy qz]);
 % Plot position and orientation in subfigures
 figure;
 subplot(2, 1, 1);
-plot(ts, [pos_x pos_y pos_z]);
+plot(ts, pos_x, 'r', ts, pos_y, 'g', ts, pos_z, 'b');
 title('Position');
 xlabel('Time (s)');
 ylabel('Position (m)');
 legend('X', 'Y', 'Z');
 
 subplot(2, 1, 2);
-plot(ts, eul);
+% plot(ts, eul);
+plot(ts, eul(:,1), 'r', ts, eul(:,2), 'g', ts, eul(:,3), 'b');
 title('Orientation (Euler angles)');
 xlabel('Time (s)');
 ylabel('Angle (rad)');

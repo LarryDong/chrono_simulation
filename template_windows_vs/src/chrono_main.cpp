@@ -22,6 +22,7 @@ class SimConfig {
 public:
     double step_size = 1e-3;
     double render_step_size = 1.0 / 50.0;
+    double init_wait_time = 3.0;                // wait 3s to drive the car;
 }sim_config;
 
 // Output: lidar, IMU, gt.
@@ -51,9 +52,19 @@ int main(int argc, char* argv[]) {
     vis->AddSkyBox();
     vis->AddLogo();
     vis->AttachVehicle(&gator.platform_.GetVehicle());
+    // Add path-follower
+    auto ballT = chrono_types::make_shared<ChVisualShapeSphere>(0.1);
+    ballT->SetColor(ChColor(0, 1, 0));
+    int iballT = vis->AddVisualModel(ballT, ChFrame<>());
+    vis->AddLight(ChVector<>(-150, -150, 200), 300, ChColor(0.7f, 0.7f, 0.7f));
+    vis->AddLight(ChVector<>(-150, +150, 200), 300, ChColor(0.7f, 0.7f, 0.7f));
+    vis->AddLight(ChVector<>(+150, -150, 200), 300, ChColor(0.7f, 0.7f, 0.7f));
+    vis->AddLight(ChVector<>(+150, +150, 200), 300, ChColor(0.7f, 0.7f, 0.7f));
+
     std::cout << "==> Init vehicle irr. " << std::endl;
 
     // 4. Create vehicle driver system
+#ifdef DRIVER_INTERACTIVE
     ChInteractiveDriverIRR driver(*vis);
     double steering_time = 1.0;  // time to go from 0 to +1 (or from 0 to -1)
     double throttle_time = 1.0;  // time to go from 0 to +1
@@ -62,12 +73,20 @@ int main(int argc, char* argv[]) {
     driver.SetThrottleDelta(sim_config.render_step_size / throttle_time);
     driver.SetBrakingDelta(sim_config.render_step_size / braking_time);
     driver.Initialize();
+#else
+    float target_speed = 15.0f;      // 1m/s
+    ChPathFollowerDriver driver(gator.platform_.GetVehicle(), gator.path_, "my_path", target_speed);
+    driver.SetColor(ChColor(0.0f, 0.0f, 0.8f));
+    driver.GetSteeringController().SetLookAheadDistance(2);
+    driver.GetSteeringController().SetGains(0.8, 0, 0);     // SetGains (double Kp, double Ki, double Kd)
+    driver.GetSpeedController().SetGains(0.4, 0, 0);
+    driver.Initialize();
+#endif
     std::cout << "==> Init driver. " << std::endl;
 
     // 5. Create Sensors.
     std::string lidar_output_folder = output_folder_base + "lidar/";
     MySensors sensors(gator.platform_, lidar_output_folder);
-    sensors.li
     std::cout << "==> Init sensors: lidar & imu. " << std::endl;
 
     // 6. Config the output
@@ -86,31 +105,46 @@ int main(int argc, char* argv[]) {
     imu_output << "// Timestamp, acc-x, y, z, gyro-x, y, z(rad/s)" << std::endl;
     gt_output << "// Timestamp, pos-x, y, z, qw, qx, qy, qz" << std::endl;
 
+
+    // Simulation control;
     int step_number = 0;
+    bool is_first_loop = true;          // first loop, wait for some second without any input
+    bool is_read_to_loop = false;       // when move away from the start point, stop the vehicle when come back to the end point;
+
     while (vis->Run()){
 
         double time = gator.platform_.GetSystem()->GetChTime();
+        auto chassis = gator.platform_.GetChassisBody();
 
         // 1. Update sensors.
         sensors.manager_.Update();
 
-        // Get driver input
+        // Get driver input. From Irrlicht-interface or Path PID controller. 
         DriverInputs driver_inputs = driver.GetInputs();
-
-        // Update modules (process inputs from other modules)
-        driver.Synchronize(time);
-        env.terrain_.Synchronize(time);
-        gator.platform_.Synchronize(time, driver_inputs, env.terrain_);
-        vis->Synchronize(time, driver_inputs);
-
-        // Advance simulation for one timestep for all modules
-        driver.Advance(sim_config.step_size);
-        env.terrain_.Advance(sim_config.step_size);
-        gator.platform_.Advance(sim_config.step_size);
-        vis->Advance(sim_config.step_size);
-        
-        step_number++;
-
+        if (time < sim_config.init_wait_time) {
+            driver.SetDesiredSpeed(0.0f);           // keep speed 0 when waiting for stablizing
+            driver_inputs.m_steering = 0.0f;
+            driver_inputs.m_throttle = 0.0f;
+            driver_inputs.m_braking = 0.0f;
+        }
+        else {
+            if (is_first_loop) {
+                driver.SetDesiredSpeed(target_speed);
+                is_first_loop = false;
+            }
+        }
+        // if moives away from the start point, stopped when back to the start point;
+        if ((chassis->GetPos() - gator.start_point_).Length() > 5.0) {      // move away from the start point;
+            is_read_to_loop = true;
+            //std::cout << "--> Moved away. " << std::endl;
+        }
+        if (is_read_to_loop) {
+            auto dis = (chassis->GetPos() - gator.start_point_).Length();
+            if (dis < 2.0) {
+                std::cout << "--> To end point;" << std::endl;
+                break;
+            }
+        }
 
 
         // Output data to folder;
@@ -129,6 +163,7 @@ int main(int argc, char* argv[]) {
 
         // some visualization and terminal output;
         if (step_number % 10 == 0) {
+            vis->UpdateVisualModel(iballT, ChFrame<>(driver.GetSteeringController().GetTargetLocation()));
             vis->BeginScene();
             vis->Render();
             vis->EndScene();
@@ -139,9 +174,22 @@ int main(int argc, char* argv[]) {
                 cout << "Imu: Acc : " << acc[0] << ", " << acc[1] << ", " << acc[2] << endl;
                 cout << "   : gyro: " << gyro[0] << ", " << gyro[1] << ", " << gyro[2] << endl;
             }
-            auto chassis = gator.platform_.GetChassisBody();
             cout << chassis->GetPos() << ", " << chassis->GetRot() << endl;
         }
+
+        // Update modules (process inputs from other modules)
+        driver.Synchronize(time);
+        env.terrain_.Synchronize(time);
+        gator.platform_.Synchronize(time, driver_inputs, env.terrain_);
+        vis->Synchronize(time, driver_inputs);
+
+        // Advance simulation for one timestep for all modules
+        driver.Advance(sim_config.step_size);
+        env.terrain_.Advance(sim_config.step_size);
+        gator.platform_.Advance(sim_config.step_size);
+        vis->Advance(sim_config.step_size);
+
+        step_number++;
     }
 
     // close files;
