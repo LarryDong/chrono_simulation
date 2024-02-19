@@ -24,6 +24,8 @@ public:
     double render_step_size = 1.0 / 50.0;
 }sim_config;
 
+// Output: lidar, IMU, gt.
+const std::string output_folder_base = "C:/Users/larrydong/Desktop/chrono_output/";
 
 
 int main(int argc, char* argv[]) {
@@ -63,9 +65,26 @@ int main(int argc, char* argv[]) {
     std::cout << "==> Init driver. " << std::endl;
 
     // 5. Create Sensors.
-    MySensors sensors(gator.platform_);
+    std::string lidar_output_folder = output_folder_base + "lidar/";
+    MySensors sensors(gator.platform_, lidar_output_folder);
+    sensors.li
     std::cout << "==> Init sensors: lidar & imu. " << std::endl;
 
+    // 6. Config the output
+    std::string imu_filename = output_folder_base + "imu.csv";
+    std::string gt_filename = output_folder_base + "gt.csv";
+    std::ofstream imu_output(imu_filename);
+    std::ofstream gt_output(gt_filename);
+    if (!imu_output) {
+        std::cout << "[Error]. Cannot save IMU into: " << imu_filename << std::endl;
+        while (1) { ; }
+    }
+    if (!gt_output) {
+        std::cout << "[Error]. Cannot save GT into: " << gt_filename << std::endl;
+        while (1) { ; }
+    }
+    imu_output << "// Timestamp, acc-x, y, z, gyro-x, y, z(rad/s)" << std::endl;
+    gt_output << "// Timestamp, pos-x, y, z, qw, qx, qy, qz" << std::endl;
 
     int step_number = 0;
     while (vis->Run()){
@@ -74,21 +93,6 @@ int main(int argc, char* argv[]) {
 
         // 1. Update sensors.
         sensors.manager_.Update();
-
-        
-        if (step_number % 10 == 0) {
-            vis->BeginScene();
-            vis->Render();              // 这一步更新的lidar？
-            vis->EndScene();
-        }
-
-        if (step_number % 1000 == 0) {
-            vector<double> acc, gyro;
-            if (sensors.getIMU(acc, gyro)) {
-                cout << "Imu: Acc : " << acc[0] << ", " << acc[1] << ", " << acc[2] << endl;
-                cout << "   : gyro: " << gyro[0] << ", " << gyro[1] << ", " << gyro[2] << endl;
-            }
-        }
 
         // Get driver input
         DriverInputs driver_inputs = driver.GetInputs();
@@ -107,7 +111,42 @@ int main(int argc, char* argv[]) {
         
         step_number++;
 
+
+
+        // Output data to folder;
+        // 1. Lidar output: already done by `gator.advance()`;
+        // 2. IMU output to one file;
+        std::vector<double> acc, gyro;
+        if (sensors.getIMU(acc, gyro)) {        // if IMU is updated
+            imu_output << time << ", " << acc[0] << ", " << acc[1] << ", " << acc[2] << ", " << gyro[0] << ", " << gyro[1] << ", " << gyro[2] << std::endl;
+        }
+        // 3. Ground-truth to a new file;
+        chrono::ChVector<double> pos = gator.platform_.GetChassisBody()->GetPos();
+        chrono::Quaternion rot = gator.platform_.GetChassisBody()->GetRot();
+        gt_output << time << ", " << pos.x() << ", " << pos.y() << ", " << pos.z() << ", "
+            << rot.e0() << ", " << rot.e1() << ", " << rot.e2() << ", " << rot.e3() << std::endl;
+
+
+        // some visualization and terminal output;
+        if (step_number % 10 == 0) {
+            vis->BeginScene();
+            vis->Render();
+            vis->EndScene();
+        }
+        if (step_number % 1000 == 0) {
+            vector<double> acc, gyro;
+            if (sensors.getIMU(acc, gyro)) {
+                cout << "Imu: Acc : " << acc[0] << ", " << acc[1] << ", " << acc[2] << endl;
+                cout << "   : gyro: " << gyro[0] << ", " << gyro[1] << ", " << gyro[2] << endl;
+            }
+            auto chassis = gator.platform_.GetChassisBody();
+            cout << chassis->GetPos() << ", " << chassis->GetRot() << endl;
+        }
     }
+
+    // close files;
+    imu_output.close();
+    gt_output.close();
 
 
     return 0;

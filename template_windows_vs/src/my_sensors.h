@@ -20,10 +20,11 @@
 #include <iostream>
 #include <vector>
 
+
 class MySensors {
 
 public:
-	MySensors(chrono::vehicle::gator::Gator& platform) : manager_(platform.GetSystem()){
+	MySensors(chrono::vehicle::gator::Gator& platform, std::string lidar_output_folder="empty") : manager_(platform.GetSystem()) {
 	
 		using namespace chrono;
 		using namespace chrono::sensor;
@@ -33,8 +34,23 @@ public:
 		//// Create Lidar. From JSON
 		auto lidar_ext = chrono::ChFrame<double>({ 0, 0, 1 }, Q_from_AngAxis(0, { 1, 0, 0 }));
 		lidar_ = chrono::sensor::Sensor::CreateFromJSON("E:/codeGit/chrono_simulation/template_windows_vs/configs/Lidar.json", platform.GetChassisBody(), lidar_ext);
-		// TODO: save lidar's data;
+		if (lidar_output_folder == "empty") {
+			std::cout << "[Error]. Lidar output folder not provided. " << std::endl;
+			while (1) { ; }
+		}
+		else {
+			// save lidar config;
+			std::ofstream out(lidar_output_folder + "lidar_config.txt");
+			if (!out) {
+				std::cout << "[Error]. Unabled to save lidar config" << std::endl;
+			}
+			out << "Lidar frequency: " << lidar_->GetUpdateRate() << std::endl;
+			out << "Lidar extrinsics: " << lidar_ext << std::endl;
+			out.close();
+		}
+		lidar_->PushFilter(chrono_types::make_shared<ChFilterSavePtCloud>(lidar_output_folder));
 		manager_.AddSensor(lidar_);
+		lidar_last_count_ = 0;
 		
 		// Create IMU;
 		auto imu_ext = chrono::ChFrame<double>({ 0, 0, 1 }, Q_from_AngAxis(0, { 1, 0, 0 }));
@@ -71,6 +87,8 @@ public:
 		gyro_->SetCollectionWindow(0);
 		gyro_->PushFilter(chrono_types::make_shared<ChFilterGyroAccess>());  // Add a filter to access the imu data
 		manager_.AddSensor(gyro_);                                           // Add the IMU sensor to the sensor manager
+
+		imu_last_count_ = 0;
 	}
 
 
@@ -86,7 +104,7 @@ private:
 	std::shared_ptr< chrono::sensor::ChAccelerometerSensor> acc_;
 	std::shared_ptr< chrono::sensor::ChGyroscopeSensor> gyro_;
 
-	int lidar_last_count_, imu_last_count_;
+	size_t lidar_last_count_, imu_last_count_;
 
 };
 

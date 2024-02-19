@@ -16,7 +16,7 @@ bool MySensors::getIMU(vector<double>& accs, vector<double>& gyros) {
 	auto bufferAcc = acc_->GetMostRecentBuffer<UserAccelBufferPtr>();
 	auto bufferGyro = gyro_->GetMostRecentBuffer<UserGyroBufferPtr>();
 
-    if (bufferAcc->Buffer && bufferGyro->Buffer) {
+	if (bufferAcc->Buffer && bufferGyro->Buffer && bufferAcc->LaunchedCount > imu_last_count_) {
         AccelData acc_data = bufferAcc->Buffer[0];
         GyroData gyro_data = bufferGyro->Buffer[0];
 
@@ -29,7 +29,10 @@ bool MySensors::getIMU(vector<double>& accs, vector<double>& gyros) {
         gyros[1] = gyro_data.Pitch;
         gyros[2] = gyro_data.Yaw;
 
+        imu_last_count_ = bufferAcc->LaunchedCount;
+
         return true;
+
         //std::cout << "IMU acc : " << acc_data.X << ", " << acc_data.Y << ", " << acc_data.Z << std::endl;
         //std::cout << "IMU gryo: " << gyro_data.Roll << ", " << gyro_data.Pitch << ", " << gyro_data.Yaw << std::endl;
     }
