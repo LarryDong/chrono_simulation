@@ -2,6 +2,8 @@
 build/
 exercise/
 data/
+*lwx*
+*vscode/*
 
 # Prerequisites
 *.d
