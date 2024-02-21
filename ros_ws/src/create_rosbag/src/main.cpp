@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
         pcl::toROSMsg(cloud, output);
         output.header.frame_id = "chrono";
         output.header.stamp = begin_time + ros::Duration(i * 1.0 / lidar_frequency);
-        bag.write("/lidar", ros::Time::now(), output);
+        bag.write("/lidar", output.header.stamp, output);
     }
     ROS_INFO_STREAM("<-- Write Lidar scans: " << lidar_scan_counter);
 
