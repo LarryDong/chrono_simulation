@@ -56,10 +56,10 @@ int main(int argc, char* argv[]) {
     auto ballT = chrono_types::make_shared<ChVisualShapeSphere>(0.1);
     ballT->SetColor(ChColor(0, 1, 0));
     int iballT = vis->AddVisualModel(ballT, ChFrame<>());
-    vis->AddLight(ChVector<>(-150, -150, 200), 300, ChColor(0.7f, 0.7f, 0.7f));
-    vis->AddLight(ChVector<>(-150, +150, 200), 300, ChColor(0.7f, 0.7f, 0.7f));
-    vis->AddLight(ChVector<>(+150, -150, 200), 300, ChColor(0.7f, 0.7f, 0.7f));
-    vis->AddLight(ChVector<>(+150, +150, 200), 300, ChColor(0.7f, 0.7f, 0.7f));
+    vis->AddLight(ChVector<>(-50, -50, 100), 300, ChColor(0.7f, 0.7f, 0.7f));
+    vis->AddLight(ChVector<>(-50, +50, 100), 300, ChColor(0.7f, 0.7f, 0.7f));
+    vis->AddLight(ChVector<>(+50, -50, 100), 300, ChColor(0.7f, 0.7f, 0.7f));
+    vis->AddLight(ChVector<>(+50, +50, 100), 300, ChColor(0.7f, 0.7f, 0.7f));
 
     std::cout << "==> Init vehicle irr. " << std::endl;
 
@@ -162,7 +162,7 @@ int main(int argc, char* argv[]) {
 
 
         // some visualization and terminal output;
-        if (step_number % 10 == 0) {
+        if (step_number % 100 == 0) {
             vis->UpdateVisualModel(iballT, ChFrame<>(driver.GetSteeringController().GetTargetLocation()));
             vis->BeginScene();
             vis->Render();
