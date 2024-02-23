@@ -9,6 +9,7 @@
 #include "chrono_sensor/sensors/ChLidarSensor.h"
 #include "chrono_sensor/sensors/ChIMUSensor.h"
 #include "chrono_sensor/sensors/ChNoiseModel.h"
+#include "chrono_sensor/sensors/ChCameraSensor.h"
 #include "chrono_sensor/filters/ChFilterAccess.h"
 #include "chrono_sensor/filters/ChFilterPCfromDepth.h"
 #include "chrono_sensor/filters/ChFilterVisualize.h"
@@ -16,6 +17,9 @@
 #include "chrono_sensor/filters/ChFilterVisualizePointCloud.h"
 #include "chrono_sensor/sensors/ChSensorBuffer.h"
 #include "chrono_models/vehicle/gator/Gator.h"
+
+#include "chrono/physics/ChBody.h"
+#include "chrono/physics/ChSystemNSC.h"
 
 #include <iostream>
 #include <vector>
@@ -51,6 +55,7 @@ public:
 		lidar_->PushFilter(chrono_types::make_shared<ChFilterSavePtCloud>(lidar_output_folder));
 		manager_.AddSensor(lidar_);
 		lidar_last_count_ = 0;
+		std::cout << "--> Lidar inited" << std::endl;
 		
 		// Create IMU;
 		auto imu_ext = chrono::ChFrame<double>({ 0, 0, 1 }, Q_from_AngAxis(0, { 1, 0, 0 }));
@@ -89,8 +94,51 @@ public:
 		manager_.AddSensor(gyro_);                                           // Add the IMU sensor to the sensor manager
 
 		imu_last_count_ = 0;
+		std::cout << "--> IMU inited" << std::endl;
+
+		//// Create a camera sensor for 3rd-person-view visualization
+		//auto cam_body = chrono_types::make_shared<ChBody>();
+		//cam_body->SetBodyFixed(true);
+		//cam_body->SetPos(ChVector<>(0, 0, 100));			// 500m height in map center;
+		//platform.GetSystem()->AddBody(cam_body);
+		//auto camera = chrono_types::make_shared<ChCameraSensor>(
+		//	cam_body,                          // 绑定到的ChBody对象
+		//	20.0f,                         // 更新率（Hz）
+		//	chrono::ChFrame<double>({ 0, 0, -5 }, Q_from_AngAxis(0, { 1, 0, 0 })), // 相对于ChBody的位置和方向
+		//	1280,                          // 图像宽度
+		//	720,                           // 图像高度
+		//	CH_C_PI                    // 摄像头视场角度
+		//);
+		//camera->SetName("3rd-view");
+		//camera->SetLag(0);
+		//double exposure_time = 0.02f;
+		//camera->SetCollectionWindow(exposure_time);
+		//camera->PushFilter(chrono_types::make_shared<ChFilterVisualize>(640, 480));
+		//manager_.AddSensor(camera);
+		//manager_.scene->AddPointLight({ 100, 100, 100 }, { 2, 2, 2 }, 5000);
+		//manager_.scene->SetAmbientLight({ 0, 0, 0 });
+		//manager_.scene->SetFogScatteringFromDistance(200.0);
+		//// Set environment map
+		//Background b;
+		//b.mode = BackgroundMode::GRADIENT;
+		//b.color_horizon = { 0.6f, 0.7f, 0.8f };
+		//b.color_zenith = { 0.4f, 0.5f, 0.6f };
+		//manager_.scene->SetBackground(b);
+		//std::cout << "--> 3rd view camera inited" << std::endl;
 	}
 
+
+
+
+	//auto cam2 = chrono_types::make_shared<chrono::sensor::ChCameraSensor>(
+	//	my_hmmwv.GetChassisBody(),                                            // body camera is attached to
+	//	cam_update_rate,                                                      // update rate in Hz
+	//	chrono::ChFrame<double>({ 1, 0, .875 }, Q_from_AngAxis(0, { 1, 0, 0 })),  // offset pose
+	//	image_width,                                                          // image width
+	//	image_height,                                                         // image height
+	//	cam_fov,
+	//	super_samples);  // fov, lag, exposure
+	//cam2->SetName("Camera Sensor");
 
 	void printIMU(void);
 	bool getIMU(std::vector<double>& accs, std::vector<double>& gyros);

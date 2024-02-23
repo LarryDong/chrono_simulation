@@ -2,7 +2,7 @@
 clc; clear; close all;
 
 % Parameters
-radius = 45; % radius of the circle
+radius = 50; % radius of the circle
 d = 1; % distance between adjacent control points, default is 1m
 center = [0, 0]; % center of the circle
 
@@ -25,3 +25,5 @@ for i = 1:length(x)
     fprintf(fileID, '%.6f %.6f %.6f\n', x(i), y(i), z(i));
 end
 fclose(fileID);
+
+fprintf("Contrl points saved. \n");

@@ -1,10 +1,12 @@
 
 clc; clear; close all;
 
+base_folder = "C:\Users\larrydong\Desktop\chrono_speed5_step0.2\";
+
 %% Draw the IMU data;
 
 % Define the CSV file name
-filename = 'C:\Users\larrydong\Desktop\chrono_output\imu.csv';
+filename = base_folder + "imu.csv";
 
 % Read the CSV file, skipping the first row (header)
 opts = delimitedTextImportOptions('NumVariables', 7, ...
@@ -45,7 +47,7 @@ legend('wx', 'wy', 'wz');
 
 %% Draw the trajectory
 % Load ground truth data from CSV
-filename = 'C:\Users\larrydong\Desktop\chrono_output\gt.csv'; % Modify with your actual file name
+filename = base_folder + "gt.csv";
 data = readtable(filename, 'Format', '%f%f%f%f%f%f%f%f', 'HeaderLines', 1);
 
 % Extract data

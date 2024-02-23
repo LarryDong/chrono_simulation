@@ -27,7 +27,7 @@ public:
         std::shared_ptr<RigidTerrain::Patch> patch;
 
          //Flat terrain
-        patch = terrain_.AddPatch(patch_mat, CSYSNORM, 500, 500);  // Generate a "flat" terrain
+        //patch = terrain_.AddPatch(patch_mat, CSYSNORM, 500, 500);  // Generate a "flat" terrain
         
 
         // obj terrain
@@ -35,20 +35,21 @@ public:
         //            "C:/Users/larrydong/Desktop/123.obj");
         
         // BMP terrain.
-        //std::string height_bmp = "C:/Users/larrydong/Desktop/step1.bmp";
-        //patch = terrain_.AddPatch(patch_mat, ChCoordsys<>({ 0, 0, -0.5 }, QUNIT), height_bmp, 100.0, 100.0, 0.0, 0.5);   // 64x64£¬´¿ºÚÏñËØ0£¬´¿°×1
-        
-
-        patch->SetTexture(GetDataFile("terrain/textures/grass.jpg"), 100, 100);
+        double terrain_size = 200;
+        std::string height_bmp = "C:/Users/larrydong/Desktop/step1.bmp";
+        patch = terrain_.AddPatch(patch_mat, ChCoordsys<>({ 0, 0, -0.5 }, QUNIT), height_bmp, terrain_size, terrain_size, 0.0, 0.2);   // 64x64£¬´¿ºÚÏñËØ0£¬´¿°×1
+        patch->SetTexture(GetDataFile("terrain/textures/grass.jpg"), terrain_size, terrain_size);
         patch->SetColor(ChColor(0.8f, 0.8f, 0.5f));
         terrain_.Initialize();
-
+        std::cout << "--> terrain inited. " << std::endl;
 
         // create surrounding environment;
-        std::string scene_3d = "C:/Users/larrydong/Desktop/demo.stl";
+        std::string scene_3d = "C:/Users/larrydong/Desktop/demo2.stl";
         auto mmesh = chrono::geometry::ChTriangleMeshConnected::CreateFromSTLFile(scene_3d);
-        mmesh->Transform(ChVector<>(0, 0, -1.5), ChMatrix33<>(1.0/(1.0f/0.0254)));  // scale from inch -> mm.
-
+        double inch_2_mm_scale = 0.0254;
+        mmesh->Transform(ChVector<>(0, 0, -0.5), ChMatrix33<>(1));  // scale from inch -> mm.
+        //mmesh->Transform(ChVector<>(0, 0, -0.5), ChMatrix33<>(1.0 / (1.0f / 0.0254)));  // scale from inch -> mm.
+        std::cout << "--> 3D scene inited. " << std::endl;
 
         auto trimesh_shape = chrono_types::make_shared<ChVisualShapeTriangleMesh>();
         trimesh_shape->SetMesh(mmesh);
