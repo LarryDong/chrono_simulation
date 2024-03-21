@@ -28,12 +28,29 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(VelodynePoint,
                                   (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(float, time, time)(std::uint16_t, ring, ring))
 
 
-#define LIDAR_FREQUENCY (10)
+#define LIDAR_FREQUENCY (10.0f)
 #define PI (3.1415926f)
 #define OUTPUT_SCAN_LINE (32)         // how many line output.
+#define POINT_PER_LINE (1080)
+
 const double g_fov_top = 16.0;
 const double g_fov_bottom = -16.0;
 
+
+double g_vlp_time[OUTPUT_SCAN_LINE][POINT_PER_LINE];
+
+
+void create_vlp_time(void){
+    double dt_between_ring = 1.0f / LIDAR_FREQUENCY / OUTPUT_SCAN_LINE;
+    double dt_in_ring = dt_between_ring * 1.0f / POINT_PER_LINE;
+
+    for (unsigned int h = 0; h < OUTPUT_SCAN_LINE; h++) {
+        for (unsigned int w = 0; w < POINT_PER_LINE; w++) {
+            double offset_time = h * dt_between_ring + w * dt_in_ring;
+            g_vlp_time[h][w] = offset_time;
+        }
+    }
+}
 
 int main(int argc, char** argv) {
     ros::init(argc, argv, "pack_data_to_rosbag");
@@ -64,10 +81,12 @@ int main(int argc, char** argv) {
     ROS_INFO_STREAM("Output file: " << output_bag_filename);
     ROS_INFO_STREAM("Wait time: " << init_wait_time <<" s");
 
+    create_vlp_time();
 
     // Load and write Lidar data
     int lidar_scan_counter = 0;
     const double vertical_angle_resolution = (g_fov_top - g_fov_bottom)/(OUTPUT_SCAN_LINE-1);
+    double debug_cnt = 0;
     for (int i = 0;; ++i) {
         // skip init time.
         double dt = i * 1.0 / LIDAR_FREQUENCY;
@@ -88,6 +107,7 @@ int main(int argc, char** argv) {
 
         std::string line;
         std::getline(lidar_file, line); // Skip the first empty line
+        int counter = 0;
         while (std::getline(lidar_file, line)) {
             std::istringstream iss(line);
             std::string token;
@@ -109,15 +129,26 @@ int main(int argc, char** argv) {
             vp.intensity = intensity;
             const double rad2deg = 180 / PI;
             double pitch = atan2(z, sqrt(x * x + y * y)) * rad2deg;
-            int ring = int((pitch - g_fov_bottom) / vertical_angle_resolution);
+            int ring = int((pitch - g_fov_bottom) / vertical_angle_resolution + 0.5);
             // cout << "i: " << i << ", x: " << x << ", y: " << y << ", z: " << z << ", pitch: " << pitch << ", ring" << ring << endl;
             assert(ring >= 0 && ring < OUTPUT_SCAN_LINE);
             vp.ring = ring;
-            vp.time = 0.0;           // no offset time.
+            
+            // For chrono simulation, the rotation: (x-, y=0) -> (x=0, y-) -> (x+, y=0) -> (x=0, y+)
+            // atan2: from [-pi, pi] during the rotation.
+            double angle = atan2(y, x);
+            angle += PI;
+
+            int in_ring_idx = int (angle / (2*PI) * POINT_PER_LINE);
+            vp.time = g_vlp_time[ring][in_ring_idx];
+            // if(debug_cnt++>2048)
+            //     break;
+            // cout << "Time: " << vp.time << endl;
 
             // cloud.push_back(point);
             velo_cloud.push_back(vp);
         }
+        debug_cnt = 0;
 
         sensor_msgs::PointCloud2 output;
         pcl::toROSMsg(velo_cloud, output);
