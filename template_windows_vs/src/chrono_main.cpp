@@ -22,7 +22,7 @@ class SimConfig {
 public:
     double step_size = 1e-3;
     double render_step_size = 1.0 / 50.0;
-    double init_wait_time = 3.0;                // wait 3s to drive the car;
+    double init_wait_time = 5.0;                // wait 3s to drive the car;
 }sim_config;
 
 // Output: lidar, IMU, gt.
@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {
     // 3. Create Vehicle Irrlicht interface.
     auto vis = chrono_types::make_shared<ChWheeledVehicleVisualSystemIrrlicht>();
     vis->SetWindowTitle("MyGator");
-    vis->SetChaseCamera(ChVector<>(0.0, 0.0, 2.0), 5.0, 0);
+    vis->SetChaseCamera(ChVector<>(0.0, 0.0, 5.0), 20.0, 0);
     vis->Initialize();
     vis->AddTypicalLights();
     vis->AddSkyBox();
@@ -56,10 +56,10 @@ int main(int argc, char* argv[]) {
     auto ballT = chrono_types::make_shared<ChVisualShapeSphere>(0.1);
     ballT->SetColor(ChColor(0, 1, 0));
     int iballT = vis->AddVisualModel(ballT, ChFrame<>());
-    vis->AddLight(ChVector<>(-150, -150, 200), 300, ChColor(0.7f, 0.7f, 0.7f));
-    vis->AddLight(ChVector<>(-150, +150, 200), 300, ChColor(0.7f, 0.7f, 0.7f));
-    vis->AddLight(ChVector<>(+150, -150, 200), 300, ChColor(0.7f, 0.7f, 0.7f));
-    vis->AddLight(ChVector<>(+150, +150, 200), 300, ChColor(0.7f, 0.7f, 0.7f));
+    vis->AddLight(ChVector<>(-50, -50, 100), 300, ChColor(0.7f, 0.7f, 0.7f));
+    vis->AddLight(ChVector<>(-50, +50, 100), 300, ChColor(0.7f, 0.7f, 0.7f));
+    vis->AddLight(ChVector<>(+50, -50, 100), 300, ChColor(0.7f, 0.7f, 0.7f));
+    vis->AddLight(ChVector<>(+50, +50, 100), 300, ChColor(0.7f, 0.7f, 0.7f));
 
     std::cout << "==> Init vehicle irr. " << std::endl;
 
@@ -74,12 +74,12 @@ int main(int argc, char* argv[]) {
     driver.SetBrakingDelta(sim_config.render_step_size / braking_time);
     driver.Initialize();
 #else
-    float target_speed = 15.0f;      // 1m/s
+    float target_speed = 5.0f;      // 1m/s
     ChPathFollowerDriver driver(gator.platform_.GetVehicle(), gator.path_, "my_path", target_speed);
     driver.SetColor(ChColor(0.0f, 0.0f, 0.8f));
     driver.GetSteeringController().SetLookAheadDistance(2);
     driver.GetSteeringController().SetGains(0.8, 0, 0);     // SetGains (double Kp, double Ki, double Kd)
-    driver.GetSpeedController().SetGains(0.4, 0, 0);
+    driver.GetSpeedController().SetGains(0.4, 0.05, 0);
     driver.Initialize();
 #endif
     std::cout << "==> Init driver. " << std::endl;
@@ -118,6 +118,7 @@ int main(int argc, char* argv[]) {
 
         // 1. Update sensors.
         sensors.manager_.Update();
+        std::cout << "Step: " << step_number << std::endl; 
 
         // Get driver input. From Irrlicht-interface or Path PID controller. 
         DriverInputs driver_inputs = driver.GetInputs();
@@ -162,7 +163,7 @@ int main(int argc, char* argv[]) {
 
 
         // some visualization and terminal output;
-        if (step_number % 10 == 0) {
+        if (step_number % 100 == 0) {
             vis->UpdateVisualModel(iballT, ChFrame<>(driver.GetSteeringController().GetTargetLocation()));
             vis->BeginScene();
             vis->Render();
