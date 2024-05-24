@@ -6,7 +6,9 @@
 #include "chrono_vehicle/utils/ChVehiclePath.h"
 #include "chrono_vehicle/wheeled_vehicle/ChWheeledVehicleVisualSystemIrrlicht.h"
 #include "chrono_models/vehicle/gator/Gator.h"
+#include "chrono_models/vehicle/sedan/Sedan.h"
 #include "chrono_thirdparty/filesystem/path.h"
+#include "config.h"
 
 class MyPlatform {
 
@@ -17,10 +19,11 @@ public:
         using namespace chrono::vehicle;
         using namespace chrono::irrlicht;
 
-
         // Load path file;
-        bool is_close_loop = true;
-        path_ = ChBezierCurve::read("E:/codeGit/chrono_simulation/template_windows_vs/matlab_scripts/trajectory_control_points.txt", is_close_loop);     //
+        bool is_close_loop = false;
+        path_ = ChBezierCurve::read(TRAJECTORY_TXT, is_close_loop);     //
+        //path_ = ChBezierCurve::read("E:/codeGit/chrono_simulation/template_windows_vs/matlab_scripts/trajectory_control_points.txt", is_close_loop);     //
+
         chrono::ChVector<> point0 = path_->getPoint(0);
         chrono::ChVector<> point1 = path_->getPoint(1);
         start_point_ = point0;
@@ -38,18 +41,19 @@ public:
         platform_.SetTireStepSize(1e-3);
         platform_.SetAerodynamicDrag(0.5, 5.0, 1.2);
         platform_.Initialize();
-        platform_.SetChassisVisualizationType(VisualizationType::PRIMITIVES);
-        platform_.SetSuspensionVisualizationType(VisualizationType::PRIMITIVES);
-        platform_.SetSteeringVisualizationType(VisualizationType::PRIMITIVES);
-        platform_.SetWheelVisualizationType(VisualizationType::PRIMITIVES);
-        platform_.SetTireVisualizationType(VisualizationType::PRIMITIVES);
+        platform_.SetChassisVisualizationType(VisualizationType::MESH);
+        platform_.SetSuspensionVisualizationType(VisualizationType::MESH);
+        platform_.SetSteeringVisualizationType(VisualizationType::MESH);
+        platform_.SetWheelVisualizationType(VisualizationType::MESH);
+        platform_.SetTireVisualizationType(VisualizationType::MESH);
         platform_.GetSystem()->SetCollisionSystemType(ChCollisionSystem::Type::BULLET);
 
     }
 
 
 public:
-	chrono::vehicle::gator::Gator platform_;
+    chrono::vehicle::sedan::Sedan platform_;
+    //chrono::vehicle::gator::Gator platform_;
     std::shared_ptr<chrono::ChBezierCurve> path_;
     chrono::ChVector<> start_point_, end_point_;
 

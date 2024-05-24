@@ -17,6 +17,7 @@
 #include "chrono_sensor/filters/ChFilterVisualizePointCloud.h"
 #include "chrono_sensor/sensors/ChSensorBuffer.h"
 #include "chrono_models/vehicle/gator/Gator.h"
+#include "chrono_models/vehicle/sedan/Sedan.h"
 
 #include "chrono/physics/ChBody.h"
 #include "chrono/physics/ChSystemNSC.h"
@@ -25,19 +26,21 @@
 #include <vector>
 
 
+#define LIDAR_CONFIG_JSON "E:/codeGit/chrono_simulation/template_windows_vs/configs/Lidar.json"
+
+
 class MySensors {
 
 public:
-	MySensors(chrono::vehicle::gator::Gator& platform, std::string lidar_output_folder="empty") : manager_(platform.GetSystem()) {
+	MySensors(chrono::vehicle::sedan::Sedan& platform, std::string lidar_output_folder = "empty") : manager_(platform.GetSystem()) {
+	//MySensors(chrono::vehicle::gator::Gator& platform, std::string lidar_output_folder="empty") : manager_(platform.GetSystem()) {
 	
 		using namespace chrono;
 		using namespace chrono::sensor;
-		//manager_.scene->AddPointLight({ 100, 100, 100 }, { 2, 2, 2 }, 5000);
-
 
 		//// Create Lidar. From JSON
-		auto lidar_ext = chrono::ChFrame<double>({ 0, 0, 1 }, Q_from_AngAxis(0, { 1, 0, 0 }));
-		lidar_ = chrono::sensor::Sensor::CreateFromJSON("E:/codeGit/chrono_simulation/template_windows_vs/configs/Lidar.json", platform.GetChassisBody(), lidar_ext);
+		auto lidar_ext = chrono::ChFrame<double>({ 0, 0, 3 }, Q_from_AngAxis(0, { 1, 0, 0 }));
+		lidar_ = chrono::sensor::Sensor::CreateFromJSON(LIDAR_CONFIG_JSON, platform.GetChassisBody(), lidar_ext);
 		if (lidar_output_folder == "empty") {
 			std::cout << "[Error]. Lidar output folder not provided. " << std::endl;
 			while (1) { ; }
@@ -121,7 +124,7 @@ public:
 		//// Set environment map
 		//Background b;
 		//b.mode = BackgroundMode::GRADIENT;
-		//b.color_horizon = { 0.6f, 0.7f, 0.8f };
+		//b.color_horizon = { 0.6f, light_intensity, 0.8f };
 		//b.color_zenith = { 0.4f, 0.5f, 0.6f };
 		//manager_.scene->SetBackground(b);
 		//std::cout << "--> 3rd view camera inited" << std::endl;
@@ -147,7 +150,6 @@ public:
 	chrono::sensor::ChSensorManager manager_;
 
 private:
-	//const chrono::ChFrame<> lidar_ext_, imu_ext_;
 	std::shared_ptr<chrono::sensor::ChSensor> lidar_;
 	std::shared_ptr< chrono::sensor::ChAccelerometerSensor> acc_;
 	std::shared_ptr< chrono::sensor::ChGyroscopeSensor> gyro_;

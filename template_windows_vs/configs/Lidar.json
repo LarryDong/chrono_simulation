@@ -1,18 +1,18 @@
 {
-  "Name": "Velodyne HDL-32E",
+  "Name": "Velodyne vlp16",
   "Type": "Sensor",
   "Template": "Lidar",
   "Properties": {
     "Update Rate": 10,
-    "Width": 1080,
+    "Width": 1800,
     "Height": 32,
     "Horizontal Field of View": 6.28318530718,
-    "Max Vertical Angle": 0.2792527,
-    "Min Vertical Angle": -0.2792527,
+    "Max Vertical Angle": 0.2792527,        // 16 deg
+    "Min Vertical Angle": -0.2617993,       // -15 deg
     "Max Distance": 200.0,
     "Lag": 0.00,
     "Collection Window": 0.00,
-    "Divergence Angle": 0.003,
+    "Divergence Angle": 0.0,
     "Sample Radius": 2,
     "Return Mode": "STRONGEST_RETURN"
   },
@@ -23,10 +23,10 @@
     },
     {
       "Filter": "ChFilterLidarNoiseXYZI",
-      "Standard Deviation Range": 0.0067,
-      "Standard Deviation Vertical Angle": 0.001,
-      "Standard Deviation Horizontal Angle": 0.001,
-      "Standard Deviation Intensity": 0.01,
+      "Standard Deviation Range": 0.01,
+      "Standard Deviation Vertical Angle": 0.0,
+      "Standard Deviation Horizontal Angle": 0.0,
+      "Standard Deviation Intensity": 0.0,
       "Name": "Noise"
     },
     {
