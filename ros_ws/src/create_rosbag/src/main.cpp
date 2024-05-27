@@ -112,6 +112,7 @@ int main(int argc, char** argv) {
     int lidar_scan_counter = 0;
     const double vertical_angle_resolution = (g_fov_top - g_fov_bottom)/(OUTPUT_SCAN_LINE-1);
     double debug_cnt = 0;
+    double simulation_duration = 0.0f;
     for (int i = 0;; ++i) {
         // skip init time.
         double dt = i * 1.0 / LIDAR_FREQUENCY;
@@ -123,7 +124,8 @@ int main(int argc, char** argv) {
         if (!lidar_file) {
             // ROS_WARN_STREAM("Cannot find lidar file: " << file_name);
             ROS_INFO_STREAM("Total Lidar scan: " << i);
-            ROS_WARN_STREAM("Estimated simulation time: " << i / 10.0f << "s.");
+            simulation_duration = i / 10.0f;
+            ROS_WARN_STREAM("Estimated simulation time: " << simulation_duration << "s.");
             break;
         }
         
@@ -186,9 +188,6 @@ int main(int argc, char** argv) {
         // sort each ring's timestamp to avoid CHRONO simulation issue.
         for(int r=0; r<OUTPUT_SCAN_LINE; ++r){
             auto &v_ring = v_pc_rings[r];
-            // sort(v_ring.begin(), v_ring.end(), [](const VelodynePoint& p1, const VelodynePoint& p2){    // sort by yaw-angle
-            //     return p1.time < p2.time;
-            // });
             sort(v_ring.begin(), v_ring.end(), [](const OusterPoint& p1, const OusterPoint& p2){    // sort by yaw-angle
                 return p1.t < p2.t;
             });
@@ -202,6 +201,7 @@ int main(int argc, char** argv) {
         sensor_msgs::PointCloud2 output;
         pcl::toROSMsg(velo_cloud, output);
         output.header.frame_id = "chrono";
+        output.header.seq = lidar_scan_counter;
         lidar_scan_counter++;
 
         output.header.stamp = begin_time + ros::Duration(dt);
@@ -234,6 +234,8 @@ int main(int argc, char** argv) {
 
         imu_msg.header.stamp = begin_time + ros::Duration(dt);
         imu_msg.header.frame_id = "chrono";
+        imu_msg.header.seq = imu_counter;
+        
         std::getline(iss, token, ','); imu_msg.linear_acceleration.x = std::stod(token);
         std::getline(iss, token, ','); imu_msg.linear_acceleration.y = std::stod(token);
         std::getline(iss, token, ','); imu_msg.linear_acceleration.z = std::stod(token);
@@ -281,17 +283,15 @@ int main(int argc, char** argv) {
 
         odom_msg.header.stamp = begin_time + ros::Duration(dt);
         odom_msg.header.frame_id = "chrono";
+        odom_msg.header.seq = gt_counter;
         std::getline(iss, token, ','); odom_msg.pose.pose.position.x = std::stod(token);
         std::getline(iss, token, ','); odom_msg.pose.pose.position.y = std::stod(token);
         std::getline(iss, token, ','); odom_msg.pose.pose.position.z = std::stod(token);
-        std::getline(iss, token, ','); double qw;
-        std::getline(iss, token, ','); double qx;
-        std::getline(iss, token, ','); double qy;
-        std::getline(iss, token, ','); double qz;
-        odom_msg.pose.pose.orientation.w = qw;
-        odom_msg.pose.pose.orientation.x = qx;
-        odom_msg.pose.pose.orientation.y = qy;
-        odom_msg.pose.pose.orientation.z = qz;
+        std::getline(iss, token, ','); odom_msg.pose.pose.orientation.w = std::stod(token);
+        std::getline(iss, token, ','); odom_msg.pose.pose.orientation.x = std::stod(token);
+        std::getline(iss, token, ','); odom_msg.pose.pose.orientation.y = std::stod(token);
+        std::getline(iss, token, ','); odom_msg.pose.pose.orientation.z = std::stod(token);
+
         gt_counter++;
         bag.write("/gt", odom_msg.header.stamp, odom_msg);
     }
@@ -299,6 +299,24 @@ int main(int argc, char** argv) {
 
     bag.close();
     ROS_WARN_STREAM("<== Saved bag into: " << output_bag_filename);
+
+
+    // check the number of data. If the number of imu/lidar/gt is VERY different from the time, show a warning.
+    double valid_data_duration = simulation_duration - init_wait_time;
+    int lidar_min = (valid_data_duration-1) * 10;
+    int lidar_max = (valid_data_duration+1) * 10;
+    int imu_min = (valid_data_duration-1) * 100;
+    int imu_max = (valid_data_duration+1) * 100;
+    int gt_min = (valid_data_duration-1) * 1000;
+    int gt_max = (valid_data_duration+1) * 1000;
+
+    if(lidar_scan_counter < lidar_min || lidar_scan_counter > lidar_max)
+        ROS_WARN("Lidar count is not matched the simulation time. Please check the data");    
+    if(imu_counter < imu_min || imu_counter > imu_max)
+        ROS_WARN("IMU count is not matched the simulation time. Please check the data");
+    if(gt_counter < gt_min || gt_counter > gt_max)
+        ROS_WARN("GT count is not matched the simulation time. Please check the data");
+
     return 0;
 }
 
