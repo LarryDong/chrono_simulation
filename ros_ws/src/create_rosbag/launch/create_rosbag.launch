@@ -1,8 +1,8 @@
 <launch>
 
     <node name="create_bag" pkg="create_rosbag" type="create_bag" output="screen">
-        <param name="input_folder"  type="string" value="/home/larrydong/Desktop/chrono/chrono_output_flat/"/>
-        <param name="output_file" type="string" value="/home/larrydong/Desktop/chrono_flat.bag"/>
+        <param name="input_folder"  type="string" value="/home/larrydong/Desktop/chrono_output/"/>
+        <param name="output_file" type="string" value="/home/larrydong/Desktop/chrono/test.bag"/>
     </node>
         
 </launch>
