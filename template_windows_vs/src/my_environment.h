@@ -10,6 +10,8 @@
 #include "chrono/assets/ChVisualMaterial.h"
 #include "chrono/assets/ChVisualShape.h"
 
+#include "config.h"
+
 class MyEnvironment {
 
 public:
@@ -26,41 +28,41 @@ public:
         auto patch_mat = minfo.CreateMaterial(ChContactMethod::NSC);
         std::shared_ptr<RigidTerrain::Patch> patch;
 
-         //Flat terrain
-        //patch = terrain_.AddPatch(patch_mat, CSYSNORM, 500, 500);  // Generate a "flat" terrain
+        // 1. Flat terrain
+        //patch = terrain_.AddPatch(patch_mat, CSYSNORM, 500, 500);  // Generate a "flat" 
+        //patch->SetColor(ChColor(0.8f, 0.8f, 0.5f));
         
-
-        // obj terrain
-        //patch = terrain_.AddPatch(patch_mat, ChCoordsys<>({ 0, 0, -15.0 }, Q_from_AngAxis(3.1415/2, chrono::Vector(1,0,0))), 
-        //            "C:/Users/larrydong/Desktop/123.obj");
+        // 2. BMP terrain.
+        //double terrain_size = 200;
+        //std::string height_bmp = "C:/Users/larrydong/Desktop/step1.bmp";
+        //patch = terrain_.AddPatch(patch_mat, ChCoordsys<>({ 0, 0, -1}, QUNIT), height_bmp, terrain_size, terrain_size, 0.0, 1);   // 64x64，纯黑像素0，纯白
+        //patch->SetTexture(GetDataFile("terrain/textures/grass.jpg"), terrain_size, terrain_size);
         
-        // BMP terrain.
-        double terrain_size = 200;
-        std::string height_bmp = "C:/Users/larrydong/Desktop/step1.bmp";
-        patch = terrain_.AddPatch(patch_mat, ChCoordsys<>({ 0, 0, -0.5 }, QUNIT), height_bmp, terrain_size, terrain_size, 0.0, 0.2);   // 64x64，纯黑像素0，纯白1
-        patch->SetTexture(GetDataFile("terrain/textures/grass.jpg"), terrain_size, terrain_size);
-        patch->SetColor(ChColor(0.8f, 0.8f, 0.5f));
+        // 3. OBJ terrain
+        std::cout << "--> Loading terrain... " << std::endl;
+        std::string terrain_obj = TERRAIN_OBJ;     // TODO: 注意单位（mm），以及z轴不要有遮挡。
+        //std::string terrain_obj = "C:/Users/larrydong/Desktop/chrono_file/terrain/step_single_10cm.obj";     // TODO: 注意单位（mm），以及z轴不要有遮挡。
+        patch = terrain_.AddPatch(patch_mat, ChCoordsys<>({ 0, 0, -0.5}, QUNIT), terrain_obj);
+        std::cout << "<-- Terrain loaded. " << std::endl;
         terrain_.Initialize();
-        std::cout << "--> terrain inited. " << std::endl;
 
-        // create surrounding environment;
-        std::string scene_3d = "C:/Users/larrydong/Desktop/demo2.stl";
-        auto mmesh = chrono::geometry::ChTriangleMeshConnected::CreateFromSTLFile(scene_3d);
+
+        std::string scene_3d = SCENE_OBJ;
+        auto mmesh = chrono::geometry::ChTriangleMeshConnected::CreateFromWavefrontFile(scene_3d, true, true);
+
         double inch_2_mm_scale = 0.0254;
-        mmesh->Transform(ChVector<>(0, 0, -0.5), ChMatrix33<>(1));  // scale from inch -> mm.
-        //mmesh->Transform(ChVector<>(0, 0, -0.5), ChMatrix33<>(1.0 / (1.0f / 0.0254)));  // scale from inch -> mm.
-        std::cout << "--> 3D scene inited. " << std::endl;
-
+        mmesh->Transform(ChVector<>(-0, -0, -0.5), ChMatrix33<>(0.01));
         auto trimesh_shape = chrono_types::make_shared<ChVisualShapeTriangleMesh>();
         trimesh_shape->SetMesh(mmesh);
-        trimesh_shape->SetName("HMMWV Chassis Mesh");
+        trimesh_shape->SetName("scene mesh");
         trimesh_shape->SetMutable(false);
-
         auto mesh_body = chrono_types::make_shared<ChBody>();
         mesh_body->SetPos({ 0, 0, 0 });
         mesh_body->AddVisualShape(trimesh_shape, ChFrame<>());
         mesh_body->SetBodyFixed(true);
+        std::cout << "--> Adding mesh. " << std::endl;
         sys->Add(mesh_body);
+        std::cout << "<-- Mesh added. " << std::endl;
     }
 
 public:

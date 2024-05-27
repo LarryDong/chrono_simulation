@@ -1,7 +1,9 @@
 
 clc; clear; close all;
 
-base_folder = "C:\Users\larrydong\Desktop\chrono_speed5_step0.2\";
+base_folder = "C:\Users\larrydong\Desktop\chrono_output\";
+
+skip_time = 3.0;		% skip first 3s.
 
 %% Draw the IMU data;
 
@@ -14,8 +16,11 @@ opts = delimitedTextImportOptions('NumVariables', 7, ...
                                   'Delimiter', ',');
 opts.VariableNames = ["ts", "ax", "ay", "az", "wx", "wy", "wz"];
 opts.VariableTypes = ["double", "double", "double", "double", "double", "double", "double"];
-imuData = readtable(filename, opts);
+rawImuData = readtable(filename, opts);
 
+% extract index;
+index0 = sum(rawImuData.ts < skip_time);
+imuData = rawImuData(index0:end, :);
 % Extracting data for plotting
 ts = imuData.ts;
 ax = imuData.ax;
@@ -48,7 +53,10 @@ legend('wx', 'wy', 'wz');
 %% Draw the trajectory
 % Load ground truth data from CSV
 filename = base_folder + "gt.csv";
-data = readtable(filename, 'Format', '%f%f%f%f%f%f%f%f', 'HeaderLines', 1);
+rawData = readtable(filename, 'Format', '%f%f%f%f%f%f%f%f', 'HeaderLines', 1);
+
+index0 = sum(rawData{:,1} < skip_time);
+data = rawData(index0:end, :);
 
 % Extract data
 ts = data{:, 1};
@@ -88,3 +96,15 @@ xlabel('Position X (m)');
 ylabel('Position Y (m)');
 grid on;
 axis equal;
+
+% Draw 3D graph
+figure;
+plot3(pos_x, pos_y, pos_z);
+title('3D Vehicle Trajectory');
+xlabel('Position X (m)');
+ylabel('Position Y (m)');
+zlabel('Position Z (m)');
+zlim([-2, 2]);
+grid on;
+% axis equal
+% axis equal;

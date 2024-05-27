@@ -4,6 +4,10 @@
 #include "chrono/physics/ChBodyEasy.h"
 #include "chrono_vehicle/wheeled_vehicle/ChWheeledVehicleVisualSystemIrrlicht.h"
 
+#include "chrono/assets/ChVisualShapeTriangleMesh.h"
+#include "chrono/assets/ChVisualMaterial.h"
+#include "chrono/assets/ChVisualShape.h"
+
 #include "my_platform.h"
 #include "my_environment.h"
 #include "my_sensors.h"
@@ -17,6 +21,8 @@ using std::cout;
 using std::endl;
 using std::vector;
 
+using namespace chrono::geometry;
+
 
 class SimConfig {
 public:
@@ -25,15 +31,13 @@ public:
     double init_wait_time = 5.0;                // wait 3s to drive the car;
 }sim_config;
 
-// Output: lidar, IMU, gt.
-const std::string output_folder_base = "C:/Users/larrydong/Desktop/chrono_output/";
+
 
 
 int main(int argc, char* argv[]) {
     
     chrono::SetChronoDataPath("E:/codeGit/chrono/chrono/build/data/");              // change the default data loading path.
     chrono::vehicle::SetDataPath("E:/codeGit/chrono/chrono/build/data/vehicle/");              // change the vehicle data path
-
 
     // 1. Create the gator
     MyPlatform gator;
@@ -43,12 +47,14 @@ int main(int argc, char* argv[]) {
     MyEnvironment env(gator.platform_.GetSystem());
     std::cout << "==> Init Env. " << std::endl;
 
+
     // 3. Create Vehicle Irrlicht interface.
     auto vis = chrono_types::make_shared<ChWheeledVehicleVisualSystemIrrlicht>();
     vis->SetWindowTitle("MyGator");
-    vis->SetChaseCamera(ChVector<>(0.0, 0.0, 5.0), 20.0, 0);
+    vis->SetChaseCamera(ChVector<>(0.0, 0.0, 2.0), 5, 0);
+    //vis->SetChaseCamera(ChVector<>(0.0, 0.0, 5.0), 20.0, 0);
     vis->Initialize();
-    vis->AddTypicalLights();
+    //vis->AddTypicalLights();
     vis->AddSkyBox();
     vis->AddLogo();
     vis->AttachVehicle(&gator.platform_.GetVehicle());
@@ -56,10 +62,19 @@ int main(int argc, char* argv[]) {
     auto ballT = chrono_types::make_shared<ChVisualShapeSphere>(0.1);
     ballT->SetColor(ChColor(0, 1, 0));
     int iballT = vis->AddVisualModel(ballT, ChFrame<>());
-    vis->AddLight(ChVector<>(-50, -50, 100), 300, ChColor(0.7f, 0.7f, 0.7f));
-    vis->AddLight(ChVector<>(-50, +50, 100), 300, ChColor(0.7f, 0.7f, 0.7f));
-    vis->AddLight(ChVector<>(+50, -50, 100), 300, ChColor(0.7f, 0.7f, 0.7f));
-    vis->AddLight(ChVector<>(+50, +50, 100), 300, ChColor(0.7f, 0.7f, 0.7f));
+
+    double light_intensity = 0.5f;
+    // 主动光源，Kd和Ks参数影响。
+    vis->AddLight(ChVector<>(0, 0, 200), 300, ChColor(light_intensity, light_intensity, light_intensity));/*
+    vis->AddLight(ChVector<>(-50, +50, 200), 300, ChColor(light_intensity, light_intensity, light_intensity));
+    vis->AddLight(ChVector<>(+50, -50, 200), 300, ChColor(light_intensity, light_intensity, light_intensity));
+    vis->AddLight(ChVector<>(+50, +50, 200), 300, ChColor(light_intensity, light_intensity, light_intensity));*/
+ // 
+    // 设置环境光，Ka影响显示。
+    double ambient_light_intensity = 128;
+    vis->GetSceneManager()->setAmbientLight(irr::video::SColor(0, ambient_light_intensity, ambient_light_intensity, ambient_light_intensity));
+
+
 
     std::cout << "==> Init vehicle irr. " << std::endl;
 
@@ -73,25 +88,25 @@ int main(int argc, char* argv[]) {
     driver.SetThrottleDelta(sim_config.render_step_size / throttle_time);
     driver.SetBrakingDelta(sim_config.render_step_size / braking_time);
     driver.Initialize();
-#else
-    float target_speed = 5.0f;      // 1m/s
+#else------------------------
+    float target_speed = VEHICLE_SPEED;      // 1m/s
     ChPathFollowerDriver driver(gator.platform_.GetVehicle(), gator.path_, "my_path", target_speed);
     driver.SetColor(ChColor(0.0f, 0.0f, 0.8f));
     driver.GetSteeringController().SetLookAheadDistance(2);
     driver.GetSteeringController().SetGains(0.8, 0, 0);     // SetGains (double Kp, double Ki, double Kd)
-    driver.GetSpeedController().SetGains(0.4, 0.05, 0);
+    driver.GetSpeedController().SetGains(0.6, 0.1, 0);
     driver.Initialize();
 #endif
     std::cout << "==> Init driver. " << std::endl;
 
     // 5. Create Sensors.
-    std::string lidar_output_folder = output_folder_base + "lidar/";
+    std::string lidar_output_folder = OUTPUT_FOLDER + "lidar/";
     MySensors sensors(gator.platform_, lidar_output_folder);
     std::cout << "==> Init sensors: lidar & imu. " << std::endl;
 
     // 6. Config the output
-    std::string imu_filename = output_folder_base + "imu.csv";
-    std::string gt_filename = output_folder_base + "gt.csv";
+    std::string imu_filename = OUTPUT_FOLDER + "imu.csv";
+    std::string gt_filename = OUTPUT_FOLDER + "gt.csv";
     std::ofstream imu_output(imu_filename);
     std::ofstream gt_output(gt_filename);
     if (!imu_output) {
@@ -109,7 +124,7 @@ int main(int argc, char* argv[]) {
     // Simulation control;
     int step_number = 0;
     bool is_first_loop = true;          // first loop, wait for some second without any input
-    bool is_read_to_loop = false;       // when move away from the start point, stop the vehicle when come back to the end point;
+    bool is_awayfrom_startopint = false;       // when move away from the start point, stop the vehicle when come back to the end point
 
     while (vis->Run()){
 
@@ -118,8 +133,6 @@ int main(int argc, char* argv[]) {
 
         // 1. Update sensors.
         sensors.manager_.Update();
-        std::cout << "Step: " << step_number << std::endl; 
-
         // Get driver input. From Irrlicht-interface or Path PID controller. 
         DriverInputs driver_inputs = driver.GetInputs();
         if (time < sim_config.init_wait_time) {
@@ -134,15 +147,17 @@ int main(int argc, char* argv[]) {
                 is_first_loop = false;
             }
         }
+
+        // automatically stop the simulation if to the endpoint.
         // if moives away from the start point, stopped when back to the start point;
-        if ((chassis->GetPos() - gator.start_point_).Length() > 5.0) {      // move away from the start point;
-            is_read_to_loop = true;
+        if ((chassis->GetPos() - gator.start_point_).Length() > 10.0) {      // move away from the start point;
+            is_awayfrom_startopint = true;
             //std::cout << "--> Moved away. " << std::endl;
         }
-        if (is_read_to_loop) {
-            auto dis = (chassis->GetPos() - gator.start_point_).Length();
+        if (is_awayfrom_startopint) {           // can be stopped
+            auto dis = (chassis->GetPos() - gator.end_point_).Length();
             if (dis < 2.0) {
-                std::cout << "--> To end point;" << std::endl;
+                std::cout << "--> To end point. The program stopped." << std::endl;
                 break;
             }
         }
@@ -161,15 +176,18 @@ int main(int argc, char* argv[]) {
         gt_output << time << ", " << pos.x() << ", " << pos.y() << ", " << pos.z() << ", "
             << rot.e0() << ", " << rot.e1() << ", " << rot.e2() << ", " << rot.e3() << std::endl;
 
-
-        // some visualization and terminal output;
-        if (step_number % 100 == 0) {
+        // step=1ms
+        // Terminal output.
+        if (step_number % 100 == 0) {                   // update vis 10Hz
             vis->UpdateVisualModel(iballT, ChFrame<>(driver.GetSteeringController().GetTargetLocation()));
             vis->BeginScene();
             vis->Render();
             vis->EndScene();
         }
-        if (step_number % 1000 == 0) {
+        
+        if (step_number % 1000 == 0)
+            std::cout << "Real-world time: " << step_number << "ms." << std::endl;
+        if (step_number % 1000 == 0) {                  // ouptut IMU/pos to terminal 1Hz
             vector<double> acc, gyro;
             if (sensors.getIMU(acc, gyro)) {
                 cout << "Imu: Acc : " << acc[0] << ", " << acc[1] << ", " << acc[2] << endl;
@@ -177,6 +195,7 @@ int main(int argc, char* argv[]) {
             }
             cout << chassis->GetPos() << ", " << chassis->GetRot() << endl;
         }
+
 
         // Update modules (process inputs from other modules)
         driver.Synchronize(time);
@@ -197,6 +216,10 @@ int main(int argc, char* argv[]) {
     imu_output.close();
     gt_output.close();
 
-
     return 0;
 }
+
+
+
+
+//
