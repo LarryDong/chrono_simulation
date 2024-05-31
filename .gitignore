@@ -1,4 +1,6 @@
+*.vscode*
 *.zip
+
 # ubuntu
 devel/
 build/
