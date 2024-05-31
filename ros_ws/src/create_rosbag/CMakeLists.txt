@@ -28,3 +28,6 @@ target_link_libraries(create_bag ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 add_executable(time_export src/bag_time_export.cpp)
 target_link_libraries(time_export ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
+
+add_executable(create_bag_noisy src/create_bag_with_noise.cpp)
+target_link_libraries(create_bag_noisy ${catkin_LIBRARIES} ${PCL_LIBRARIES})

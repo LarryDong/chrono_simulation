@@ -1,0 +1,8 @@
+<launch>
+
+    <node name="create_bag_noisy" pkg="create_rosbag" type="create_bag_noisy" output="screen">
+        <param name="input_folder"  type="string" value="/home/larry/data/output_data/city_bump/"/>
+        <param name="output_file" type="string" value="/home/larry/Desktop/chrono/city_bump_noise"/>
+    </node>
+        
+</launch>

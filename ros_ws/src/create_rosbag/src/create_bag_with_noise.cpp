@@ -1,3 +1,7 @@
+
+// create rosbag with noise.
+
+
 #include <ros/ros.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -12,8 +16,16 @@
 #include <ros/time.h>
 #include <iostream>
 
+#include <random>       // add random value on: 1, point position; 2, IMU ts; 3. Lidar scan ts; 
+
 
 using namespace std;
+
+
+std::random_device rd;
+std::mt19937 gen(rd());
+std::normal_distribution<> distribute(0, 1);        // mean 0, std: 1;
+// std::uniform_real_distribution<> distribute(0, 1);        // from 0~1 uniform distribution;
 
 
 // convert to velodyne point format.
@@ -54,6 +66,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(OusterPoint,
 
 
 #define LIDAR_FREQUENCY (10.0f)
+#define IMU_FREQUENCY (100.0f)
 #define PI (3.1415926535f)
 #define OUTPUT_SCAN_LINE (32)         // how many line output.
 #define POINT_PER_LINE (1800)
@@ -63,6 +76,16 @@ const double g_fov_bottom = -15.0;
 
 
 double g_vlp_time[OUTPUT_SCAN_LINE][POINT_PER_LINE];
+
+
+inline double limitValue(double val, double limit){
+    if(val > limit)
+        return limit;
+    else if (val < -limit)
+        return -limit;
+    else
+        return val;
+}
 
 
 void create_vlp_time(void){
@@ -79,7 +102,7 @@ void create_vlp_time(void){
 
 int main(int argc, char** argv) {
     ros::init(argc, argv, "pack_data_to_rosbag");
-    ROS_INFO("--> Create rosbag from chrono output.");
+    ROS_WARN("--> Create rosbag from chrono output ADDING NOISE.");
     ros::NodeHandle nh("~");
 
     std::string base_path = "default";
@@ -113,6 +136,8 @@ int main(int argc, char** argv) {
     const double vertical_angle_resolution = (g_fov_top - g_fov_bottom)/(OUTPUT_SCAN_LINE-1);
     double debug_cnt = 0;
     double simulation_duration = 0.0f;
+    bool debug_flag = true;
+    ROS_WARN("--> Creating lidar scan into rosbag...");
     for (int i = 0;; ++i) {
         // skip init time.
         double dt = i * 1.0 / LIDAR_FREQUENCY;
@@ -155,9 +180,12 @@ int main(int argc, char** argv) {
                 continue;
             }
             else{
-                vp.x = x;
-                vp.y = y;
-                vp.z = z;
+                // scan position error generation.
+                vp.x = x + distribute(gen)*0.01;     // generate 1cm error on vp. but the following calculation using original xyz.
+                vp.y = y + distribute(gen)*0.01;
+                vp.z = z + distribute(gen)*0.01;
+                // ROS_INFO_STREAM("x: " << x << ", y: " << y << ", z: " << z);
+                // ROS_INFO_STREAM("noise. x: " << vp.x << ", y: " << vp.y << ", z: " << vp.z);
                 vp.intensity = intensity;
                 const double rad2deg = 180 / PI;
                 double pitch = atan2(z, sqrt(x * x + y * y)) * rad2deg;
@@ -211,9 +239,12 @@ int main(int argc, char** argv) {
     ROS_INFO_STREAM("<-- Write Lidar scans: " << lidar_scan_counter);
 
 
+    // debug: Create a file to compare the IMU.
+    std::ofstream csv_file("/home/larry/Desktop/imu_noise.csv");
+
 
     // Load and write IMU data
-
+    ROS_WARN("--> Creating IMU data into rosbag...");
     std::ifstream imu_file(imu_path);
     if(!imu_file.is_open()){
         ROS_ERROR_STREAM("Error. Cannot open IMU file: "<< imu_path);
@@ -229,38 +260,43 @@ int main(int argc, char** argv) {
         std::getline(iss, token, ','); 
         double dt = std::stod(token);
 
+        if(debug_flag){
+            ROS_INFO_STREAM("dt111: " << dt);
+        }
         if(dt < init_wait_time)     // skip init time;
             continue;
+        if(debug_flag){
 
-        imu_msg.header.stamp = begin_time + ros::Duration(dt);
+            ROS_INFO_STREAM("dt222: " << dt);
+            debug_flag = false;
+        }
+
+        double jitter_time = dt + 0.1 * distribute(gen) * (1 / IMU_FREQUENCY);  // IMU ts has 10% std error.
+        imu_msg.header.stamp = begin_time + ros::Duration(jitter_time); 
         imu_msg.header.frame_id = "chrono";
         imu_msg.header.seq = imu_counter;
         
-        std::getline(iss, token, ','); imu_msg.linear_acceleration.x = std::stod(token);
-        std::getline(iss, token, ','); imu_msg.linear_acceleration.y = std::stod(token);
-        std::getline(iss, token, ','); imu_msg.linear_acceleration.z = std::stod(token);
-        std::getline(iss, token, ','); imu_msg.angular_velocity.x = std::stod(token);
-        std::getline(iss, token, ','); imu_msg.angular_velocity.y = std::stod(token);
-        std::getline(iss, token, ','); imu_msg.angular_velocity.z = std::stod(token);
+        // acc and gyro saturation value: 4g, and 720 deg/s.
+        const double acc_saturation = 4*9.8;                  // 4g, acceleration maximum value;
+        const double gyro_saturation =720.0 * PI / 180;       // 720 deg/s
+
+        std::getline(iss, token, ','); imu_msg.linear_acceleration.x = limitValue(std::stod(token), acc_saturation);
+        std::getline(iss, token, ','); imu_msg.linear_acceleration.y = limitValue(std::stod(token), acc_saturation);
+        std::getline(iss, token, ','); imu_msg.linear_acceleration.z = limitValue(std::stod(token), acc_saturation);
+        std::getline(iss, token, ','); imu_msg.angular_velocity.x = limitValue(std::stod(token), gyro_saturation);
+        std::getline(iss, token, ','); imu_msg.angular_velocity.y = limitValue(std::stod(token), gyro_saturation);
+        std::getline(iss, token, ','); imu_msg.angular_velocity.z = limitValue(std::stod(token), gyro_saturation);
         // add cov
         std::vector<double> cov{1,0,0,0,1,0,0,0,1};
         std::copy(cov.begin(), cov.end(), imu_msg.linear_acceleration_covariance.begin());
         std::copy(cov.begin(), cov.end(), imu_msg.angular_velocity_covariance.begin());
         imu_counter++;
 
-        // // TODO: disable IMU
-        // ROS_WARN("Now diable IMU");
-        // imu_msg.linear_acceleration.x = 0;
-        // imu_msg.linear_acceleration.y = 0;
-        // imu_msg.linear_acceleration.z = 9.8;
-        // imu_msg.angular_velocity.x = 0;
-        // imu_msg.angular_velocity.y= 0;
-        // imu_msg.angular_velocity.z = 0;
-
-        // bag.write("/ouster/imu", imu_msg.header.stamp+ros::Duration(0.01), imu_msg);
         bag.write("/ouster/imu", imu_msg.header.stamp, imu_msg);
+        csv_file << imu_msg.header.stamp - begin_time << ", " << imu_msg.linear_acceleration.x << ", " << imu_msg.linear_acceleration.y << ", " << imu_msg.linear_acceleration.z << ", " << imu_msg.angular_velocity.x << ", " << imu_msg.angular_velocity.y << ", " << imu_msg.angular_velocity.z << endl;
     }
     ROS_INFO_STREAM("<-- Write IMU data: " << imu_counter);
+    csv_file.close();
 
 
     // Read and pack GT data
