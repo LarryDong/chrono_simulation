@@ -232,7 +232,8 @@ int main(int argc, char** argv) {
         output.header.seq = lidar_scan_counter;
         lidar_scan_counter++;
 
-        output.header.stamp = begin_time + ros::Duration(dt);
+        double jitter_time = dt + 0.1 * distribute(gen) * (1.0 / LIDAR_FREQUENCY);         // add 10% lidar jitter.
+        output.header.stamp = begin_time + ros::Duration(jitter_time);
         bag.write("/ouster/points", output.header.stamp, output);
         // bag.write("/ouster/points", output.header.stamp+ros::Duration(0.1), output);
     }
