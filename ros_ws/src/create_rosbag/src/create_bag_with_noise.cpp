@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
 
 
     rosbag::Bag bag;
-    bag.open(output_bag_filename, rosbag::bagmode::Write);
+    bag.open(output_bag_filename+".bag", rosbag::bagmode::Write);
 
     ros::Time begin_time = ros::Time::now();
     double init_wait_time = 0.0;            // Do not need to wait now. The data is already waited.
