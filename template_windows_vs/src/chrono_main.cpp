@@ -28,7 +28,7 @@ class SimConfig {
 public:
     double step_size = 1e-3;
     double render_step_size = 1.0 / 50.0;
-    double init_wait_time = 5.0;                // wait 3s to drive the car;
+    double init_wait_time = 10.0;                // wait 10.0s to drive the car;
 }sim_config;
 
 
@@ -89,12 +89,12 @@ int main(int argc, char* argv[]) {
     driver.SetBrakingDelta(sim_config.render_step_size / braking_time);
     driver.Initialize();
 #else------------------------
-    float target_speed = VEHICLE_SPEED;      // 1m/s
+    float target_speed = VEHICLE_SPEED;
     ChPathFollowerDriver driver(gator.platform_.GetVehicle(), gator.path_, "my_path", target_speed);
     driver.SetColor(ChColor(0.0f, 0.0f, 0.8f));
     driver.GetSteeringController().SetLookAheadDistance(2);
     driver.GetSteeringController().SetGains(0.8, 0, 0);     // SetGains (double Kp, double Ki, double Kd)
-    driver.GetSpeedController().SetGains(0.6, 0.1, 0);
+    driver.GetSpeedController().SetGains(0.4, 0.1, 0);
     driver.Initialize();
 #endif
     std::cout << "==> Init driver. " << std::endl;
@@ -126,7 +126,7 @@ int main(int argc, char* argv[]) {
     bool is_first_loop = true;          // first loop, wait for some second without any input
     bool is_awayfrom_startopint = false;       // when move away from the start point, stop the vehicle when come back to the end point
 
-    while (vis->Run()){
+    while (vis->Run()) {
 
         double time = gator.platform_.GetSystem()->GetChTime();
         auto chassis = gator.platform_.GetChassisBody();
@@ -166,15 +166,18 @@ int main(int argc, char* argv[]) {
         // Output data to folder;
         // 1. Lidar output: already done by `gator.advance()`;
         // 2. IMU output to one file;
-        std::vector<double> acc, gyro;
-        if (sensors.getIMU(acc, gyro)) {        // if IMU is updated
-            imu_output << time << ", " << acc[0] << ", " << acc[1] << ", " << acc[2] << ", " << gyro[0] << ", " << gyro[1] << ", " << gyro[2] << std::endl;
+        if (time > sim_config.init_wait_time) {
+            std::vector<double> acc, gyro;
+            if (sensors.getIMU(acc, gyro)) {        // if IMU is updated
+                imu_output << time << ", " << acc[0] << ", " << acc[1] << ", " << acc[2] << ", " << gyro[0] << ", " << gyro[1] << ", " << gyro[2] << std::endl;
+            }
+            // 3. Ground-truth to a new file;
+            chrono::ChVector<double> pos = gator.platform_.GetChassisBody()->GetPos();
+            chrono::Quaternion rot = gator.platform_.GetChassisBody()->GetRot();
+            gt_output << time << ", " << pos.x() << ", " << pos.y() << ", " << pos.z() << ", "
+                << rot.e0() << ", " << rot.e1() << ", " << rot.e2() << ", " << rot.e3() << std::endl;
+            // TODO: ISSUE. pos和rot是vehicle的，到SLAM里面是Lidar的。在哪里解决？
         }
-        // 3. Ground-truth to a new file;
-        chrono::ChVector<double> pos = gator.platform_.GetChassisBody()->GetPos();
-        chrono::Quaternion rot = gator.platform_.GetChassisBody()->GetRot();
-        gt_output << time << ", " << pos.x() << ", " << pos.y() << ", " << pos.z() << ", "
-            << rot.e0() << ", " << rot.e1() << ", " << rot.e2() << ", " << rot.e3() << std::endl;
 
         // step=1ms
         // Terminal output.
