@@ -1,7 +1,7 @@
 <launch>
 
     <node name="create_bag_noisy" pkg="create_rosbag" type="create_bag_noisy" output="screen">
-        <param name="input_folder"  type="string" value="/home/larry/data/dongy_new_test/"/>
-        <param name="output_file" type="string" value="/home/larry/Desktop/chrono/dongy_new_test"/>
+        <param name="input_folder"  type="string" value="/home/larry/data/city_bump_new/"/>
+        <param name="output_file" type="string" value="/home/larry/Desktop/chrono/city_bump_new"/>
     </node>
 </launch>

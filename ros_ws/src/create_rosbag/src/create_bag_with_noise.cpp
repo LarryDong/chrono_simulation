@@ -41,6 +41,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(VelodynePoint,
 
 
 // define Ouster32 point
+#define Ouster_Ts_Scale (1e6)
 struct OusterPoint{
     PCL_ADD_POINT4D;
     float intensity;
@@ -75,6 +76,9 @@ const double g_fov_top = 16.0;
 const double g_fov_bottom = -15.0;
 
 
+const double init_wait_time = 0.0;            // Do not need to wait now. The data is already waited.
+
+
 double g_vlp_time[OUTPUT_SCAN_LINE][POINT_PER_LINE];
 
 
@@ -85,6 +89,10 @@ inline double limitValue(double val, double limit){
         return -limit;
     else
         return val;
+}
+
+inline bool isNanOrInf(float value) {
+    return std::isnan(value) || std::isinf(value);
 }
 
 
@@ -120,7 +128,6 @@ int main(int argc, char** argv) {
     bag.open(output_bag_filename+".bag", rosbag::bagmode::Write);
 
     ros::Time begin_time = ros::Time::now();
-    double init_wait_time = 0.0;            // Do not need to wait now. The data is already waited.
 
     ROS_INFO_STREAM("Input folder: " << base_path);
     ROS_INFO_STREAM("Lidar folder: " << lidar_folder);
@@ -134,7 +141,6 @@ int main(int argc, char** argv) {
     // Load and write Lidar data
     int lidar_scan_counter = 0;
     const double vertical_angle_resolution = (g_fov_top - g_fov_bottom)/(OUTPUT_SCAN_LINE-1);
-    double debug_cnt = 0;
     double simulation_duration = 0.0f;
     bool debug_flag = true;
     ROS_WARN("--> Creating lidar scan into rosbag...");
@@ -156,12 +162,8 @@ int main(int argc, char** argv) {
         
         std::string line;
         std::getline(lidar_file, line); // Skip the first empty line
-        int counter = 0;
         OusterPoint vp, vp_old;
-        int skip_counter = 0;
-
         std::vector<OusterPoint> v_pc_rings[OUTPUT_SCAN_LINE];   // use N lines to save each ring first, and then save them to a new point cloud.
-
         int line_cnt = 0;
         while (std::getline(lidar_file, line)) {
             line_cnt++;
@@ -176,7 +178,6 @@ int main(int argc, char** argv) {
             std::getline(iss, token, ','); intensity = std::stof(token);
 
             if(abs(x)<0.01 || abs(y) < 0.01 || std::isnan(x) || std::isnan(y) || isnan(z)){            // skip too-near points.
-                // ROS_INFO_STREAM("idx: "<< i <<", Skip counter: " << skip_counter++ );
                 continue;
             }
             else{
@@ -205,7 +206,7 @@ int main(int argc, char** argv) {
                     angle += 2*PI;
 
                 int in_ring_idx = int (angle / (2*PI) * POINT_PER_LINE + 0.5);
-                vp.t = g_vlp_time[ring][in_ring_idx];
+                vp.t = g_vlp_time[ring][in_ring_idx] * Ouster_Ts_Scale;           // TODO: For ouster, the timestamp is "uint32", which should be ms(0~10^6)
 
                 v_pc_rings[ring].push_back(vp);  // first save points into rings, then sort.
             }
@@ -223,8 +224,6 @@ int main(int argc, char** argv) {
                 velo_cloud.push_back(p);        // save into clouds.
             }
         }
-
-        debug_cnt = 0;
 
         sensor_msgs::PointCloud2 output;
         pcl::toROSMsg(velo_cloud, output);
@@ -261,16 +260,8 @@ int main(int argc, char** argv) {
         std::getline(iss, token, ','); 
         double dt = std::stod(token);
 
-        if(debug_flag){
-            ROS_INFO_STREAM("dt111: " << dt);
-        }
         if(dt < init_wait_time)     // skip init time;
             continue;
-        if(debug_flag){
-
-            ROS_INFO_STREAM("dt222: " << dt);
-            debug_flag = false;
-        }
 
         double jitter_time = dt + 0.1 * distribute(gen) * (1 / IMU_FREQUENCY);  // IMU ts has 10% std error.
         imu_msg.header.stamp = begin_time + ros::Duration(jitter_time); 
@@ -278,7 +269,7 @@ int main(int argc, char** argv) {
         imu_msg.header.seq = imu_counter;
         
         // acc and gyro saturation value: 4g, and 720 deg/s.
-        const double acc_saturation = 4*9.8;                  // 4g, acceleration maximum value;
+        const double acc_saturation = 4 * 9.8;                // 4g, acceleration maximum value;
         const double gyro_saturation =720.0 * PI / 180;       // 720 deg/s
 
         std::getline(iss, token, ','); imu_msg.linear_acceleration.x = limitValue(std::stod(token), acc_saturation);
@@ -315,7 +306,7 @@ int main(int argc, char** argv) {
         std::getline(iss, token, ','); 
         double dt = std::stod(token);
 
-        if(dt<init_wait_time)
+        if (dt < init_wait_time)
             continue;
 
         odom_msg.header.stamp = begin_time + ros::Duration(dt);
@@ -348,11 +339,11 @@ int main(int argc, char** argv) {
     int gt_max = (valid_data_duration+1) * 1000;
 
     if(lidar_scan_counter < lidar_min || lidar_scan_counter > lidar_max)
-        ROS_WARN("Lidar count is not matched the simulation time. Please check the data");    
+        ROS_ERROR("Lidar count is not matched the simulation time. Please check the data");    
     if(imu_counter < imu_min || imu_counter > imu_max)
-        ROS_WARN("IMU count is not matched the simulation time. Please check the data");
+        ROS_ERROR("IMU count is not matched the simulation time. Please check the data");
     if(gt_counter < gt_min || gt_counter > gt_max)
-        ROS_WARN("GT count is not matched the simulation time. Please check the data");
+        ROS_ERROR("GT count is not matched the simulation time. Please check the data");
 
     return 0;
 }

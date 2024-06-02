@@ -1,19 +1,35 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
-    "configurations": [
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "ROS: Launch",
+      "type": "ros",
+      "request": "launch",
+      "target": "/home/larry/codeGit/chrono_simulation/ros_ws/src/create_rosbag/launch/create_rosbag_noise.launch",
+      "arguments": [
+        "config_name:=/config/chrono.yaml"
+      ],
+      // "preLaunchTask": "catkin_make",
+      "postDebugTask": "kill_ros"
+    },
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "cppdbg",
+      "request": "launch",
+      "args": [],
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "cwd": "/home/larry/codeGit/chrono_simulation/ros_ws/src/create_rosbag/src",
+      "program": "/home/larry/codeGit/chrono_simulation/ros_ws/src/create_rosbag/src/build/Debug/outDebug",
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb",
+      "setupCommands": [
         {
-            "name": "ROS: Launch",
-            "request": "launch",
-            "target": "/home/larrydong/codeGit/chrono_simulation/ros_ws/src/create_rosbag/launch/create_rosbag.launch",
-            "launch": [
-                "rviz",
-                "gz"
-            ],
-            "type": "ros",
-            "arguments": ["config_name:=/config/chrono.yaml"]
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
         }
-    ]
+      ]
+    }
+  ]
 }
