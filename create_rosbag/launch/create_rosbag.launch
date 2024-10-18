@@ -1,8 +1,12 @@
 <launch>
+    <arg name="sequence" default="force-A0F10-2024.10.18.json" />
+    <arg name="input_folder" default="/media/larry/M2-SSD/data/raw/differentA_1/$(arg sequence)/" />
+    <arg name="output_file" default="/media/larry/M2-SSD/data/raw/differentA_1/bag/$(arg sequence).bag" />
 
     <node name="create_bag" pkg="create_rosbag" type="create_bag" output="screen">
-        <param name="input_folder"  type="string" value="/home/larry/data/chrono/smallA-Gyro-2024.10.11/"/>
-        <param name="output_file" type="string" value="/home/larry/data/chrono/smallA-Gyro-2024.10.11.bag"/>
+        <param name="input_folder" value="$(arg input_folder)" />
+        <param name="output_file" value="$(arg output_file)"/>
     </node>
         
 </launch>
+
