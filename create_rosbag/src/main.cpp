@@ -56,25 +56,48 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(OusterPoint,
 #define LIDAR_FREQUENCY (10.0f)
 #define PI (3.1415926535f)
 #define OUTPUT_SCAN_LINE (32)         // how many line output.
-#define POINT_PER_LINE (1800)
+#define POINT_PER_LINE (1024)
+#define Time_Scale (1e9)         // Ouster, nano-second.
 
-const double g_fov_top = 16.0;
-const double g_fov_bottom = -15.0;
+const double g_fov_top = 22.5;
+const double g_fov_bottom = -22.5;
 
 
 double g_vlp_time[OUTPUT_SCAN_LINE][POINT_PER_LINE];
 
 
+// TODO: This has issue. Each line has the same time start and end. --Modified in 2024.10.21
+// void create_vlp_time(void){
+//     double dt_between_ring = 1.0f / LIDAR_FREQUENCY / OUTPUT_SCAN_LINE;
+//     double dt_in_ring = dt_between_ring * 1.0f / POINT_PER_LINE;
+//     for (unsigned int h = 0; h < OUTPUT_SCAN_LINE; h++) {
+//         for (unsigned int w = 0; w < POINT_PER_LINE; w++) {
+//             double offset_time = h * dt_between_ring + w * dt_in_ring;
+//             g_vlp_time[h][w] = offset_time;
+//         }
+//     }
+//     ROS_INFO_STREAM("Create point time. dt_ring: " << dt_between_ring << ", dt_point: " << dt_in_ring);
+// }
+
+
 void create_vlp_time(void){
-    double dt_between_ring = 1.0f / LIDAR_FREQUENCY / OUTPUT_SCAN_LINE;
+    double dt_between_ring = 1.0f / LIDAR_FREQUENCY;
     double dt_in_ring = dt_between_ring * 1.0f / POINT_PER_LINE;
     for (unsigned int h = 0; h < OUTPUT_SCAN_LINE; h++) {
         for (unsigned int w = 0; w < POINT_PER_LINE; w++) {
-            double offset_time = h * dt_between_ring + w * dt_in_ring;
+            double offset_time = w * dt_in_ring;
             g_vlp_time[h][w] = offset_time;
         }
     }
     ROS_INFO_STREAM("Create point time. dt_ring: " << dt_between_ring << ", dt_point: " << dt_in_ring);
+
+    // for (unsigned int h = 0; h < OUTPUT_SCAN_LINE; h++)
+    // {
+    //     for (unsigned int w = 0; w < POINT_PER_LINE; w++)
+    //     {
+    //         ROS_INFO_STREAM("Point h: " << h <<", w: "<< w<<", times: " << g_vlp_time[h][w]);
+    //     }
+    // }
 }
 
 int main(int argc, char** argv) {
@@ -162,9 +185,9 @@ int main(int argc, char** argv) {
                 const double rad2deg = 180 / PI;
                 double pitch = atan2(z, sqrt(x * x + y * y)) * rad2deg;
                 int ring = int((pitch - g_fov_bottom) / vertical_angle_resolution + 0.5);
-                // ROS_INFO_STREAM("ring: " << ring <<", pitch: " << pitch << ", g_fov_bottom: " << g_fov_bottom);
+                ROS_INFO_STREAM("ring: " << ring <<", pitch: " << pitch << ", g_fov_bottom: " << g_fov_bottom);
                 if(!(ring >=0 && ring < OUTPUT_SCAN_LINE)){
-                    ROS_WARN_STREAM("Invalid ring: " << ring << ", line id: "<< line_cnt << ", pitch: " << pitch << ", g_fov_bottom: " << g_fov_bottom);
+                    // ROS_WARN_STREAM("Invalid ring: " << ring << ", line id: "<< line_cnt << ", pitch: " << pitch << ", g_fov_bottom: " << g_fov_bottom);
                     continue;
                 }
                 assert(ring >= 0 && ring < OUTPUT_SCAN_LINE);
@@ -177,7 +200,9 @@ int main(int argc, char** argv) {
                     angle += 2*PI;
 
                 int in_ring_idx = int (angle / (2*PI) * POINT_PER_LINE + 0.5);
-                vp.t = g_vlp_time[ring][in_ring_idx];
+                vp.t = size_t(g_vlp_time[ring][in_ring_idx] * Time_Scale);                         // convert time to nano-second. Ouster: 
+
+                // ROS_INFO_STREAM("vp.t: " << vp.t <<", ring: " << ring <<", in_ring_idx: " << in_ring_idx);
 
                 v_pc_rings[ring].push_back(vp);  // first save points into rings, then sort.
             }
