@@ -11,6 +11,8 @@
 #include <string>
 #include <ros/time.h>
 #include <iostream>
+#include <vector>
+#include <assert.h>
 
 
 using namespace std;
@@ -100,6 +102,21 @@ void create_vlp_time(void){
     // }
 }
 
+
+
+// 函数用于将一行数据拆分为浮点数
+std::vector<double> splitLineToDoubles(const std::string& line) {
+    std::vector<double> result;
+    std::istringstream iss(line);
+    double value;
+    while (iss >> value) {
+        result.push_back(value);
+    }
+    return result;
+}
+
+
+
 int main(int argc, char** argv) {
     ros::init(argc, argv, "pack_data_to_rosbag");
     ROS_INFO("--> Create rosbag from chrono output.");
@@ -107,9 +124,11 @@ int main(int argc, char** argv) {
 
     std::string base_path = "default";
     std::string output_bag_filename = "default";
+    std::string output_gt_filename = "default";
 
     nh.getParam("input_folder", base_path);
-    nh.getParam("output_file", output_bag_filename);
+    nh.getParam("output_bag", output_bag_filename);
+    nh.getParam("output_gt", output_gt_filename);
 
     std::string lidar_folder = base_path + "Lidar/";
     std::string imu_path = base_path + "imu.csv";
@@ -122,16 +141,23 @@ int main(int argc, char** argv) {
     ros::Time begin_time = ros::Time::now();
     double init_wait_time = 0.0;            // Do not need to wait now. The data is already waited.
 
+    ROS_INFO("---------------------------------  INPUT  ---------------------------------");
     ROS_INFO_STREAM("Input folder: " << base_path);
     ROS_INFO_STREAM("Lidar folder: " << lidar_folder);
     ROS_INFO_STREAM("IMU file: " << imu_path);
     ROS_INFO_STREAM("GT file: " << gt_path);
-    ROS_INFO_STREAM("Output file: " << output_bag_filename);
+    ROS_INFO("---------------------------------  Output  ---------------------------------");
+    ROS_INFO_STREAM("Output rosbag: " << output_bag_filename);
+    ROS_INFO_STREAM("Output gt file: " << output_gt_filename);
+    ROS_INFO("---------------------------------  Settings  ---------------------------------");
     ROS_INFO_STREAM("Wait time: " << init_wait_time <<" s");
+    ROS_INFO("---------------------------------  Running  ---------------------------------");
 
     create_vlp_time();
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Load and write Lidar data
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     int lidar_scan_counter = 0;
     const double vertical_angle_resolution = (g_fov_top - g_fov_bottom)/(OUTPUT_SCAN_LINE-1);
     double debug_cnt = 0;
@@ -185,7 +211,7 @@ int main(int argc, char** argv) {
                 const double rad2deg = 180 / PI;
                 double pitch = atan2(z, sqrt(x * x + y * y)) * rad2deg;
                 int ring = int((pitch - g_fov_bottom) / vertical_angle_resolution + 0.5);
-                ROS_INFO_STREAM("ring: " << ring <<", pitch: " << pitch << ", g_fov_bottom: " << g_fov_bottom);
+                // ROS_INFO_STREAM("ring: " << ring <<", pitch: " << pitch << ", g_fov_bottom: " << g_fov_bottom);
                 if(!(ring >=0 && ring < OUTPUT_SCAN_LINE)){
                     // ROS_WARN_STREAM("Invalid ring: " << ring << ", line id: "<< line_cnt << ", pitch: " << pitch << ", g_fov_bottom: " << g_fov_bottom);
                     continue;
@@ -236,8 +262,9 @@ int main(int argc, char** argv) {
     ROS_INFO_STREAM("<-- Write Lidar scans: " << lidar_scan_counter);
 
 
-
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Load and write IMU data
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     std::ifstream imu_file(imu_path);
     if(!imu_file.is_open()){
@@ -273,23 +300,56 @@ int main(int argc, char** argv) {
         std::copy(cov.begin(), cov.end(), imu_msg.angular_velocity_covariance.begin());
         imu_counter++;
 
-        // // TODO: disable IMU
-        // ROS_WARN("Now diable IMU");
-        // imu_msg.linear_acceleration.x = 0;
-        // imu_msg.linear_acceleration.y = 0;
-        // imu_msg.linear_acceleration.z = 9.8;
-        // imu_msg.angular_velocity.x = 0;
-        // imu_msg.angular_velocity.y= 0;
-        // imu_msg.angular_velocity.z = 0;
-
-        // bag.write("/ouster/imu", imu_msg.header.stamp+ros::Duration(0.01), imu_msg);
         bag.write("/ouster/imu", imu_msg.header.stamp, imu_msg);
     }
     ROS_INFO_STREAM("<-- Write IMU data: " << imu_counter);
 
 
-    // Read and pack GT data
+    // TODO: This function is removed. Just generate a new gt_xxx.txt  --2024.11.01
+    // // Read and pack GT data. 
+    // std::ifstream gt_file(gt_path);
+    // if(!gt_file.is_open()){
+    //     ROS_ERROR_STREAM("Error. Cannot open GT file: "<< gt_path);
+    //     std::abort();
+    // }
+    // std::getline(gt_file, line); // Skip header
+    // size_t gt_counter = 0;
+    // while (std::getline(gt_file, line)) {
+    //     std::istringstream iss(line);
+    //     nav_msgs::Odometry odom_msg;
+    //     std::string token;
+    //     std::getline(iss, token, ','); 
+    //     double dt = std::stod(token);
+
+    //     if(dt<init_wait_time)
+    //         continue;
+
+    //     odom_msg.header.stamp = begin_time + ros::Duration(dt);
+    //     odom_msg.header.frame_id = "chrono";
+    //     odom_msg.header.seq = gt_counter;
+    //     std::getline(iss, token, ','); odom_msg.pose.pose.position.x = std::stod(token);
+    //     std::getline(iss, token, ','); odom_msg.pose.pose.position.y = std::stod(token);
+    //     std::getline(iss, token, ','); odom_msg.pose.pose.position.z = std::stod(token);
+    //     std::getline(iss, token, ','); odom_msg.pose.pose.orientation.w = std::stod(token);
+    //     std::getline(iss, token, ','); odom_msg.pose.pose.orientation.x = std::stod(token);
+    //     std::getline(iss, token, ','); odom_msg.pose.pose.orientation.y = std::stod(token);
+    //     std::getline(iss, token, ','); odom_msg.pose.pose.orientation.z = std::stod(token);
+
+    //     gt_counter++;
+    //     bag.write("/gt", odom_msg.header.stamp, odom_msg);
+    // }
+    // ROS_INFO_STREAM("<-- Write Gt pose: " << gt_counter);
+
+    // bag.close();
+    // ROS_WARN_STREAM("<== Saved bag into: " << output_bag_filename);
+
+    
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Read and output GT
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     std::ifstream gt_file(gt_path);
+    std::ofstream gt_out_file(output_gt_filename);
+
     if(!gt_file.is_open()){
         ROS_ERROR_STREAM("Error. Cannot open GT file: "<< gt_path);
         std::abort();
@@ -300,31 +360,38 @@ int main(int argc, char** argv) {
         std::istringstream iss(line);
         nav_msgs::Odometry odom_msg;
         std::string token;
-        std::getline(iss, token, ','); 
+        std::getline(iss, token, ' '); 
         double dt = std::stod(token);
 
         if(dt<init_wait_time)
             continue;
-
-        odom_msg.header.stamp = begin_time + ros::Duration(dt);
-        odom_msg.header.frame_id = "chrono";
-        odom_msg.header.seq = gt_counter;
-        std::getline(iss, token, ','); odom_msg.pose.pose.position.x = std::stod(token);
-        std::getline(iss, token, ','); odom_msg.pose.pose.position.y = std::stod(token);
-        std::getline(iss, token, ','); odom_msg.pose.pose.position.z = std::stod(token);
-        std::getline(iss, token, ','); odom_msg.pose.pose.orientation.w = std::stod(token);
-        std::getline(iss, token, ','); odom_msg.pose.pose.orientation.x = std::stod(token);
-        std::getline(iss, token, ','); odom_msg.pose.pose.orientation.y = std::stod(token);
-        std::getline(iss, token, ','); odom_msg.pose.pose.orientation.z = std::stod(token);
-
+        
         gt_counter++;
-        bag.write("/gt", odom_msg.header.stamp, odom_msg);
+        // Extract each data. Using a different format (compared to IMU), but they're the same.
+        std::vector<double> values = splitLineToDoubles(line);
+        if (values.size() != 8){
+            std::cerr << "Error! gt file incorrect format" << line << std::endl;
+            std::abort();
+        }
+
+        // Add init value.
+        values[0] += begin_time.toSec();
+
+        // save into tum-format
+        gt_out_file << std::setprecision(15) << values[0] << " " 
+                    << std::setprecision(8)
+                    << values[1] << " " 
+                    << values[2] << " " 
+                    << values[3] << " " 
+                    << values[4] << " " 
+                    << values[5] << " " 
+                    << values[6] << " " 
+                    << values[7] << endl;
     }
-    ROS_INFO_STREAM("<-- Write Gt pose: " << gt_counter);
+    ROS_INFO_STREAM("<-- Write gt data: " << gt_counter);
 
-    bag.close();
-    ROS_WARN_STREAM("<== Saved bag into: " << output_bag_filename);
 
+    ///////////////////////////////////////////////////////////////////////////
 
     // check the number of data. If the number of imu/lidar/gt is VERY different from the time, show a warning.
     double valid_data_duration = simulation_duration - init_wait_time;
@@ -344,4 +411,6 @@ int main(int argc, char** argv) {
 
     return 0;
 }
+
+
 
