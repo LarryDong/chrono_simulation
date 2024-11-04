@@ -378,8 +378,7 @@ int main(int argc, char** argv) {
         values[0] += begin_time.toSec();
 
         // save into tum-format
-        gt_out_file << std::setprecision(15) << values[0] << " " 
-                    << std::setprecision(8)
+        gt_out_file << std::fixed << std::setprecision(4) << values[0] << " " 
                     << values[1] << " " 
                     << values[2] << " " 
                     << values[3] << " " 
