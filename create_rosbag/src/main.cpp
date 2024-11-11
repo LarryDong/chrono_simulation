@@ -59,7 +59,9 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(OusterPoint,
 #define PI (3.1415926535f)
 #define OUTPUT_SCAN_LINE (32)         // how many line output.
 #define POINT_PER_LINE (1024)
-#define Time_Scale (1e9)         // Ouster, nano-second.
+// TODO: Test. Use no scale for ts test.
+// #define Time_Scale (1e9)         // Ouster, nano-second.
+#define Time_Scale (1e6)         // Chrono, second.
 
 const double g_fov_top = 22.5;
 const double g_fov_bottom = -22.5;
@@ -92,6 +94,7 @@ void create_vlp_time(void){
         }
     }
     ROS_INFO_STREAM("Create point time. dt_ring: " << dt_between_ring << ", dt_point: " << dt_in_ring);
+
 
     // for (unsigned int h = 0; h < OUTPUT_SCAN_LINE; h++)
     // {
@@ -219,11 +222,11 @@ int main(int argc, char** argv) {
                 assert(ring >= 0 && ring < OUTPUT_SCAN_LINE);
                 vp.ring = ring;
                 
-                // For chrono simulation, the rotation: (x-, y=0) -> (x=0, y-) -> (x+, y=0) -> (x=0, y+)
-                // atan2: from [-pi, pi] during the rotation.
+                // For chrono simulation, the rotation: (x-, y=0) -> (x=0, y-) -> (x+, y=0) -> (x=0, y+) [Verified on 20241111, using a simplified scene.]
+                // atan2: from (-pi, pi] during the rotation. 
+                // So the "first" point is (-pi) at (x-, y=0), dt = 0. So atan2's result should +PI to get (0, 2Pi] to map the one scan.
                 double angle = atan2(y, x);
-                if(angle < 0)
-                    angle += 2*PI;
+                angle += PI;
 
                 int in_ring_idx = int (angle / (2*PI) * POINT_PER_LINE + 0.5);
                 vp.t = size_t(g_vlp_time[ring][in_ring_idx] * Time_Scale);                         // convert time to nano-second. Ouster: 
@@ -340,8 +343,8 @@ int main(int argc, char** argv) {
     // }
     // ROS_INFO_STREAM("<-- Write Gt pose: " << gt_counter);
 
-    // bag.close();
-    // ROS_WARN_STREAM("<== Saved bag into: " << output_bag_filename);
+    bag.close();
+    ROS_WARN_STREAM("<== Saved bag into: " << output_bag_filename);
 
     
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -360,7 +363,7 @@ int main(int argc, char** argv) {
         std::istringstream iss(line);
         nav_msgs::Odometry odom_msg;
         std::string token;
-        std::getline(iss, token, ' '); 
+        std::getline(iss, token, ','); 
         double dt = std::stod(token);
 
         if(dt<init_wait_time)
