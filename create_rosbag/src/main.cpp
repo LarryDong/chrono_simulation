@@ -60,8 +60,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(OusterPoint,
 #define OUTPUT_SCAN_LINE (32)         // how many line output.
 #define POINT_PER_LINE (1024)
 // TODO: Test. Use no scale for ts test.
-// #define Time_Scale (1e9)         // Ouster, nano-second.
-#define Time_Scale (1e6)         // Chrono, second.
+#define Time_Scale (1e9)         // Ouster, nano-second.
 
 const double g_fov_top = 22.5;
 const double g_fov_bottom = -22.5;
