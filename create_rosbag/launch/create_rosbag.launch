@@ -1,10 +1,11 @@
 <launch>
-    <arg name="sequence" default="torque-A40F10V1-2024.10.25" />
-    <arg name="input_folder" default="/home/larry/QSQ_Share/NewSequence/$(arg sequence)/" />
-    <arg name="output_bag" default="/home/larry/QSQ_Share/NewSequence/output/$(arg sequence).bag" />
-    <arg name="output_gt" default="/home/larry/QSQ_Share/NewSequence/output/gt_$(arg sequence).txt" />
+    <arg name="sequence" default="1-A1F100V2-2024.12.23" />
+    <arg name="input_folder" default="/media/larry/M2-SSD/ChronoOutput-1226/$(arg sequence)/" />
+    <arg name="output_bag" default="/media/larry/M2-SSD/rosbag_output/$(arg sequence).bag" />
+    <arg name="output_gt" default="/media/larry/M2-SSD/rosbag_output/gt_$(arg sequence).txt" />
+    <arg name="node_name" default="create_bag" />
 
-    <node name="create_bag" pkg="create_rosbag" type="create_bag" output="screen">
+    <node name="$(arg node_name)" pkg="create_rosbag" type="create_bag" output="screen">
         <param name="input_folder" value="$(arg input_folder)" />
         <param name="output_bag" value="$(arg output_bag)"/>
         <param name="output_gt" value="$(arg output_gt)"/>

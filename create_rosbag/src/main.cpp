@@ -60,7 +60,8 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(OusterPoint,
 #define OUTPUT_SCAN_LINE (32)         // how many line output.
 #define POINT_PER_LINE (1024)
 // TODO: Test. Use no scale for ts test.
-#define Time_Scale (1e9)         // Ouster, nano-second.
+// #define Time_Scale (1e9)         // Ouster, nano-second.
+#define Time_Scale (1e9)         // Chrono, second.
 
 const double g_fov_top = 22.5;
 const double g_fov_bottom = -22.5;
@@ -134,6 +135,7 @@ int main(int argc, char** argv) {
 
     std::string lidar_folder = base_path + "Lidar/";
     std::string imu_path = base_path + "imu.csv";
+    // std::string imu_path = base_path + "imu.csv";
     std::string gt_path = base_path + "gt.csv";
 
 
@@ -259,7 +261,7 @@ int main(int argc, char** argv) {
 
         output.header.stamp = begin_time + ros::Duration(dt);
         bag.write("/ouster/points", output.header.stamp, output);
-        // bag.write("/ouster/points", output.header.stamp+ros::Duration(0.1), output);
+        // bag.write("/ouster/points", output.header.stamp+ros::Duration(-0.1), output);
     }
     ROS_INFO_STREAM("<-- Write Lidar scans: " << lidar_scan_counter);
 
@@ -276,33 +278,43 @@ int main(int argc, char** argv) {
     int imu_counter = 0;
     std::string line;
     std::getline(imu_file, line); // Skip header
+    size_t imu_skip_cnt = 0;
     while (std::getline(imu_file, line)) {
-        std::istringstream iss(line);
-        sensor_msgs::Imu imu_msg;
-        std::string token;
-        std::getline(iss, token, ','); 
-        double dt = std::stod(token);
+        imu_skip_cnt++;
+        if(imu_skip_cnt % 5 == 0){            // ds to 200 Hz
+            imu_skip_cnt = 0;
+            std::istringstream iss(line);
+            sensor_msgs::Imu imu_msg;
+            std::string token;
+            std::getline(iss, token, ',');
+            double dt = std::stod(token);
 
-        if(dt < init_wait_time)     // skip init time;
-            continue;
+            if (dt < init_wait_time) // skip init time;
+                continue;
 
-        imu_msg.header.stamp = begin_time + ros::Duration(dt);
-        imu_msg.header.frame_id = "chrono";
-        imu_msg.header.seq = imu_counter;
-        
-        std::getline(iss, token, ','); imu_msg.linear_acceleration.x = std::stod(token);
-        std::getline(iss, token, ','); imu_msg.linear_acceleration.y = std::stod(token);
-        std::getline(iss, token, ','); imu_msg.linear_acceleration.z = std::stod(token);
-        std::getline(iss, token, ','); imu_msg.angular_velocity.x = std::stod(token);
-        std::getline(iss, token, ','); imu_msg.angular_velocity.y = std::stod(token);
-        std::getline(iss, token, ','); imu_msg.angular_velocity.z = std::stod(token);
-        // add cov
-        std::vector<double> cov{1,0,0,0,1,0,0,0,1};
-        std::copy(cov.begin(), cov.end(), imu_msg.linear_acceleration_covariance.begin());
-        std::copy(cov.begin(), cov.end(), imu_msg.angular_velocity_covariance.begin());
-        imu_counter++;
+            imu_msg.header.stamp = begin_time + ros::Duration(dt);
+            imu_msg.header.frame_id = "chrono";
+            imu_msg.header.seq = imu_counter;
 
-        bag.write("/ouster/imu", imu_msg.header.stamp, imu_msg);
+            std::getline(iss, token, ',');
+            imu_msg.linear_acceleration.x = std::stod(token);
+            std::getline(iss, token, ',');
+            imu_msg.linear_acceleration.y = std::stod(token);
+            std::getline(iss, token, ',');
+            imu_msg.linear_acceleration.z = std::stod(token);
+            std::getline(iss, token, ',');
+            imu_msg.angular_velocity.x = std::stod(token);
+            std::getline(iss, token, ',');
+            imu_msg.angular_velocity.y = std::stod(token);
+            std::getline(iss, token, ',');
+            imu_msg.angular_velocity.z = std::stod(token);
+            // add cov
+            std::vector<double> cov{1, 0, 0, 0, 1, 0, 0, 0, 1};
+            std::copy(cov.begin(), cov.end(), imu_msg.linear_acceleration_covariance.begin());
+            std::copy(cov.begin(), cov.end(), imu_msg.angular_velocity_covariance.begin());
+            imu_counter++;
+            bag.write("/ouster/imu", imu_msg.header.stamp, imu_msg);
+        }
     }
     ROS_INFO_STREAM("<-- Write IMU data: " << imu_counter);
 
